@@ -3,16 +3,33 @@
 
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 
 
 key = os.environ["HERMES_API_SERVER_KEY"]
+
+
+def wait_for_health(agent: str, timeout_seconds: int = 90) -> dict:
+    deadline = time.monotonic() + timeout_seconds
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(f"http://{agent}:8642/health", timeout=10) as response:
+                health = json.loads(response.read())
+            if health.get("status") == "ok":
+                return health
+            last_error = RuntimeError(f"unexpected health payload: {health}")
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            last_error = exc
+        time.sleep(2)
+    raise RuntimeError(f"{agent} health did not become ready: {last_error}")
+
+
 for index in range(1, 11):
     agent = f"agent{index:02d}"
-    with urllib.request.urlopen(f"http://{agent}:8642/health", timeout=10) as response:
-        health = json.loads(response.read())
-    if health.get("status") != "ok":
-        raise RuntimeError(f"{agent} health failed: {health}")
+    wait_for_health(agent)
 
     request = urllib.request.Request(
         f"http://{agent}:8642/v1/skills",

@@ -9,6 +9,7 @@ const enSidebar = [
       { text: 'Getting started', link: '/guide/getting-started' },
       { text: 'Architecture', link: '/guide/architecture' },
       { text: 'Personas', link: '/guide/personas' },
+      { text: 'Civilization experiment', link: '/guide/civilization-experiment' },
       { text: 'Operations', link: '/guide/operations' },
       { text: 'Project history', link: '/guide/project-history' },
       { text: 'Timeline snapshot', link: '/guide/timeline-snapshot' }
@@ -23,6 +24,7 @@ const jaSidebar = [
       { text: 'はじめる', link: '/ja/guide/getting-started' },
       { text: 'アーキテクチャ', link: '/ja/guide/architecture' },
       { text: '登場人物', link: '/ja/guide/personas' },
+      { text: '文明実験', link: '/ja/guide/civilization-experiment' },
       { text: '運用', link: '/ja/guide/operations' },
       { text: '構築の記録', link: '/ja/guide/project-history' },
       { text: 'タイムライン', link: '/ja/guide/timeline-snapshot' }

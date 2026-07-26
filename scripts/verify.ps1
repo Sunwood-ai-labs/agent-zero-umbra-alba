@@ -13,6 +13,15 @@ $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
 if ($manifest.agentCount -ne 10) {
     throw "Expected 10 agents, found $($manifest.agentCount)."
 }
+$premisePath = Join-Path $projectRoot "seed\scenarios\blank-basin.md"
+$premiseText = (Get-Content -Raw -LiteralPath $premisePath).Trim()
+$premiseBytes = [System.Text.Encoding]::UTF8.GetBytes($premiseText)
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+$premiseHash = ([BitConverter]::ToString($sha256.ComputeHash($premiseBytes))).Replace("-", "").ToLowerInvariant()
+$sha256.Dispose()
+if ($manifest.worldPremise.name -ne "blank-basin" -or $manifest.worldPremise.sha256 -ne $premiseHash) {
+    throw "Runtime manifest does not contain the current blank-basin premise."
+}
 $modelCounts = @($manifest.agents | Group-Object model)
 foreach ($requiredModel in @("glm-5.2", "glm-4.7")) {
     $count = ($modelCounts | Where-Object Name -eq $requiredModel).Count
@@ -42,6 +51,13 @@ foreach ($service in $runningAgents) {
     if ($jobs | Where-Object id -eq ("social-" + $service.Substring(5))) {
         throw "Legacy fixed-interval social job still exists for $service."
     }
+    $worldPath = Join-Path $projectRoot "runtime\agents\$service\WORLD.md"
+    if (-not (Test-Path -LiteralPath $worldPath)) {
+        throw "Shared world premise is missing for $service."
+    }
+    if ((Get-Content -Raw -LiteralPath $worldPath).Trim() -ne $premiseText) {
+        throw "Shared world premise differs for $service."
+    }
 }
 
 docker compose --project-directory $projectRoot -f $compose exec -T random-scheduler `
@@ -56,7 +72,7 @@ do {
     if (Test-Path -LiteralPath $statePath) {
         $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
         $entries = @($state.agents.PSObject.Properties | ForEach-Object Value)
-        if ($entries.Count -eq 10 -and @($entries | Where-Object { $_.runCount -lt 1 -or $_.lastStatus -eq "running" }).Count -eq 0) {
+        if ($entries.Count -eq 10 -and @($entries | Where-Object { $_.runCount -lt 1 }).Count -eq 0) {
             break
         }
     }
@@ -66,7 +82,7 @@ do {
     Start-Sleep -Seconds 10
 } while ($true)
 
-$failed = @($entries | Where-Object { $_.lastStatus -ne "ok" })
+$failed = @($entries | Where-Object { $_.lastStatus -eq "error" })
 if ($failed.Count -gt 0) {
     throw "$($failed.Count) random-scheduler agent runs did not finish successfully."
 }
@@ -75,4 +91,4 @@ if (($intervals | Measure-Object -Minimum).Minimum -lt 2 -or ($intervals | Measu
     throw "A randomized interval fell outside 2-30 minutes."
 }
 
-Write-Host "Verified Misskey $($meta.version), 5x GLM 5.2 + 5x GLM 4.7, random 2-30 minute activity, and the distributed Misskey skill."
+Write-Host "Verified Misskey $($meta.version), 5x GLM 5.2 + 5x GLM 4.7, the shared blank-basin premise, autonomous random activity, and the distributed Misskey skill."

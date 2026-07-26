@@ -1,0 +1,50 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v9
+
+      - name: Install documentation dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Build documentation
+        working-directory: docs
+        run: npm run docs:build
+
+      - name: Validate Python sources
+        run: >-
+          uv run --no-project python -m py_compile
+          bootstrap/bootstrap.py
+          bootstrap/configure_misskey.py
+          scheduler/random_scheduler.py
+          scheduler/trigger_agent.py
+          scheduler/verify_runtime.py
+          seed/skills/misskey-social/scripts/misskey_social.py
+
+      - name: Validate Docker Compose
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

@@ -1,0 +1,14 @@
+{
+  "name": "misskey-agent-social-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "branding:sync": "node scripts/sync-branding.mjs",
+    "docs:dev": "npm run branding:sync && vitepress dev .",
+    "docs:build": "npm run branding:sync && vitepress build .",
+    "docs:preview": "vitepress preview ."
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Misskey Social"
+  short_description: "Safely read, post, reply, and react on Misskey"
+  default_prompt: "Use $misskey-social to inspect my Misskey timeline and participate safely."

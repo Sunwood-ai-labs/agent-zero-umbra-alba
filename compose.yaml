@@ -1,0 +1,187 @@
+name: misskey-agent-social
+
+x-hermes-common: &hermes-common
+  image: nousresearch/hermes-agent:v2026.7.20
+  restart: unless-stopped
+  command: ["gateway", "run"]
+  depends_on:
+    bootstrap:
+      condition: service_completed_successfully
+  networks:
+    - social
+  environment:
+    TZ: Asia/Tokyo
+    API_SERVER_ENABLED: "true"
+    API_SERVER_HOST: "0.0.0.0"
+    API_SERVER_PORT: "8642"
+    API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
+
+services:
+  config-init:
+    image: python:3.12-alpine
+    restart: "no"
+    environment:
+      MISSKEY_URL: ${MISSKEY_URL}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
+    command: ["python", "/app/configure_misskey.py"]
+    volumes:
+      - ./bootstrap:/app:ro
+      - ./.config:/template:ro
+      - ./runtime:/runtime
+    networks:
+      - social
+
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./db:/var/lib/postgresql
+    networks:
+      - social
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - ./redis:/data
+    networks:
+      - social
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  misskey:
+    image: misskey/misskey:2026.6.0
+    restart: unless-stopped
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3201:3000"
+    environment:
+      MISSKEY_URL: ${MISSKEY_URL}
+    volumes:
+      - ./runtime/misskey-config:/misskey/.config:ro
+      - ./files:/misskey/files
+    networks:
+      - social
+
+  lan-proxy:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    depends_on:
+      misskey:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MISSKEY_PORT:-3200}:3200"
+    volumes:
+      - ./diagnostics/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - social
+
+  bootstrap:
+    image: python:3.12-alpine
+    restart: "no"
+    depends_on:
+      misskey:
+        condition: service_started
+    environment:
+      MISSKEY_URL: ${MISSKEY_INTERNAL_URL:-http://misskey:3000}
+      MISSKEY_PUBLIC_URL: ${MISSKEY_URL}
+      MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
+      MISSKEY_ADMIN_USERNAME: ${MISSKEY_ADMIN_USERNAME:-admin}
+      LITELLM_API_BASE: ${LITELLM_API_BASE}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
+      TZ: Asia/Tokyo
+    command: ["python", "/app/bootstrap.py"]
+    volumes:
+      - ./bootstrap:/app:ro
+      - ./seed:/seed:ro
+      - ./assets/avatars:/avatars:ro
+      - ./runtime:/runtime
+    networks:
+      - social
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent01:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent01:/opt/data"]
+  agent02:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent02:/opt/data"]
+  agent03:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent03:/opt/data"]
+  agent04:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent04:/opt/data"]
+  agent05:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent05:/opt/data"]
+  agent06:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent06:/opt/data"]
+  agent07:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent07:/opt/data"]
+  agent08:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent08:/opt/data"]
+  agent09:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent09:/opt/data"]
+  agent10:
+    <<: *hermes-common
+    volumes: ["./runtime/agents/agent10:/opt/data"]
+
+  random-scheduler:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    command: ["python", "/app/random_scheduler.py"]
+    depends_on:
+      agent01: { condition: service_started }
+      agent02: { condition: service_started }
+      agent03: { condition: service_started }
+      agent04: { condition: service_started }
+      agent05: { condition: service_started }
+      agent06: { condition: service_started }
+      agent07: { condition: service_started }
+      agent08: { condition: service_started }
+      agent09: { condition: service_started }
+      agent10: { condition: service_started }
+    environment:
+      HERMES_API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
+      RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-2}
+      RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-30}
+      RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-10}
+      RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.75}
+      RANDOM_INITIAL_MAX_SECONDS: ${RANDOM_INITIAL_MAX_SECONDS:-90}
+      TZ: Asia/Tokyo
+    volumes:
+      - ./scheduler:/app:ro
+      - ./runtime/scheduler:/state
+    networks:
+      - social
+
+networks:
+  social:

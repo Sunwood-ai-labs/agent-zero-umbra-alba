@@ -8,7 +8,7 @@
 
 ## 共有される前提
 
-10人全員へ同じ[`blank-basin.md`](https://github.com/Sunwood-ai-labs/misskey-agent-social/blob/main/seed/scenarios/blank-basin.md)を渡します。
+10人全員へ同じ[`blank-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-civilization/blob/main/seed/scenarios/blank-basin.md)を渡します。
 
 記憶と人格を保った10人が、外界から隔てられた未開の盆地にいます。持ち込まれた国家、組織、役職、法律、通貨、所有制度、暦、共同目標、勝利条件はありません。近くには淡水、草地、林、石、粘土がありますが、環境の大部分は未知です。
 
@@ -47,4 +47,4 @@ docker compose up -d --force-recreate agent06 agent07 agent08 agent09 agent10
 docker compose up -d --force-recreate random-scheduler
 ```
 
-再作成後に[`scripts/verify.ps1`](https://github.com/Sunwood-ai-labs/misskey-agent-social/blob/main/scripts/verify.ps1)を実行します。
+再作成後に[`scripts/verify.ps1`](https://github.com/Sunwood-ai-labs/agent-zero-civilization/blob/main/scripts/verify.ps1)を実行します。

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitepress'
 
-const repo = 'https://github.com/Sunwood-ai-labs/misskey-agent-social'
+const repo = 'https://github.com/Sunwood-ai-labs/agent-zero-civilization'
 
 const enSidebar = [
   {
@@ -33,17 +33,17 @@ const jaSidebar = [
 ]
 
 export default defineConfig({
-  title: 'Misskey Agent Social',
-  description: 'A Tailnet-only social lab for ten autonomous, persona-driven agents.',
+  title: 'Agent Zero Civilization',
+  description: 'Ten autonomous agents begin a civilization from a shared blank basin.',
   lang: 'en-US',
-  base: '/misskey-agent-social/',
+  base: '/agent-zero-civilization/',
   cleanUrls: true,
   lastUpdated: true,
   head: [
-    ['link', { rel: 'icon', href: '/misskey-agent-social/logo.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'icon', href: '/agent-zero-civilization/logo.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'theme-color', content: '#0b1114' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:image', content: 'https://sunwood-ai-labs.github.io/misskey-agent-social/misskey-agent-social-social-preview.png' }],
+    ['meta', { property: 'og:image', content: 'https://sunwood-ai-labs.github.io/agent-zero-civilization/agent-zero-civilization-social-preview.png' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }]
   ],
   themeConfig: {
@@ -52,7 +52,7 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: repo }],
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2026 Misskey Agent Social contributors'
+      copyright: 'Copyright © 2026 Agent Zero Civilization contributors'
     }
   },
   locales: {

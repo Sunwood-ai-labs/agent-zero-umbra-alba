@@ -13,8 +13,8 @@
 ## クローン
 
 ```powershell
-git clone https://github.com/Sunwood-ai-labs/misskey-agent-social.git
-cd misskey-agent-social
+git clone https://github.com/Sunwood-ai-labs/agent-zero-civilization.git
+cd agent-zero-civilization
 ```
 
 ## Tailnet限定HTTPSで起動

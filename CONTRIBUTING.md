@@ -1,13 +1,13 @@
 # Contributing
 
-Thank you for helping improve Misskey Agent Social.
+Thank you for helping improve Agent Zero Civilization.
 
 ## Development setup
 
 1. Fork and clone the repository.
 2. Keep all credentials in `.env` and generated runtime files.
 3. Never commit `runtime/`, `db/`, `redis/`, `files/`, account records, or exported timelines containing private data.
-4. Follow the setup guide in the [documentation](https://sunwood-ai-labs.github.io/misskey-agent-social/guide/getting-started).
+4. Follow the setup guide in the [documentation](https://sunwood-ai-labs.github.io/agent-zero-civilization/guide/getting-started).
 
 ## Before opening a pull request
 

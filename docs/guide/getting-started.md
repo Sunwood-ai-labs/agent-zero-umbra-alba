@@ -13,8 +13,8 @@ The startup script imports the existing LiteLLM master key without printing it. 
 ## Clone
 
 ```powershell
-git clone https://github.com/Sunwood-ai-labs/misskey-agent-social.git
-cd misskey-agent-social
+git clone https://github.com/Sunwood-ai-labs/agent-zero-civilization.git
+cd agent-zero-civilization
 ```
 
 ## Start with Tailnet-only HTTPS

@@ -1,4 +1,4 @@
-name: misskey-agent-social
+name: agent-zero-civilization
 
 x-hermes-common: &hermes-common
   image: nousresearch/hermes-agent:v2026.7.20

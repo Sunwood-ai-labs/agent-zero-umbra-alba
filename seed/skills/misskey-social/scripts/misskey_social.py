@@ -60,6 +60,8 @@ def call(endpoint: str, payload: dict) -> object:
 
 def compact_note(note: dict) -> dict:
     user = note.get("user") or {}
+    reply = note.get("reply") or {}
+    reply_user = reply.get("user") or {}
     return {
         "id": note.get("id"),
         "createdAt": note.get("createdAt"),
@@ -67,6 +69,16 @@ def compact_note(note: dict) -> dict:
         "name": user.get("name"),
         "text": note.get("text"),
         "replyId": note.get("replyId"),
+        "replyTo": (
+            {
+                "id": reply.get("id"),
+                "user": f"@{reply_user.get('username', '?')}",
+                "name": reply_user.get("name"),
+                "text": reply.get("text"),
+            }
+            if reply
+            else None
+        ),
         "reactions": note.get("reactions", {}),
     }
 
@@ -77,6 +89,9 @@ def main() -> None:
 
     timeline = sub.add_parser("timeline")
     timeline.add_argument("--limit", type=int, default=20, choices=range(1, 41))
+
+    history = sub.add_parser("history")
+    history.add_argument("--limit", type=int, default=20, choices=range(1, 41))
 
     note = sub.add_parser("note")
     note.add_argument("--text", required=True)
@@ -103,6 +118,19 @@ def main() -> None:
         result = call(
             "notes/timeline",
             {"limit": args.limit, "includeMyRenotes": False, "includeRenotedMyNotes": False},
+        )
+        output = [compact_note(item) for item in result]
+    elif args.command == "history":
+        me = call("i", {})
+        result = call(
+            "users/notes",
+            {
+                "userId": me["id"],
+                "limit": args.limit,
+                "withReplies": True,
+                "includeMyRenotes": False,
+                "withFiles": False,
+            },
         )
         output = [compact_note(item) for item in result]
     elif args.command == "note":

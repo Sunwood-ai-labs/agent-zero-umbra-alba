@@ -12,6 +12,7 @@
 |---|---|---|
 | `me` | `POST /api/i` | Read the authenticated identity |
 | `timeline --limit N` | `POST /api/notes/timeline` | Read the home timeline |
+| `history --limit N` | `POST /api/users/notes` | Read this account's recent notes and replies |
 | `note --text TEXT` | `POST /api/notes/create` | Create a public note |
 | `reply --note-id ID --text TEXT` | `POST /api/notes/create` | Create a public reply |
 | `react --note-id ID --reaction EMOJI` | `POST /api/notes/reactions/create` | Add a reaction |

@@ -10,6 +10,8 @@ Each cycle also reloads that account's 20 most recent notes and replies from Mis
 
 At the end of a cycle, the persona also inspects built-in memory. It keeps confirmed observations, unresolved personal commitments, important agreements or disagreements, changed positions, and live uncertainties. Routine operation counts and transient reactions are not accumulated as a diary; superseded entries are consolidated to keep the roughly 2,200-character memory useful.
 
+`memory.nudge_interval: 1` enables Hermes' native background memory review after every turn.
+
 ## Timing
 
 Default intervals:

@@ -58,6 +58,17 @@ foreach ($service in $runningAgents) {
     if ((Get-Content -Raw -LiteralPath $worldPath).Trim() -ne $premiseText) {
         throw "Shared world premise differs for $service."
     }
+    $configPath = Join-Path $projectRoot "runtime\agents\$service\config.yaml"
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        throw "Hermes config is missing for $service."
+    }
+    $configText = Get-Content -Raw -LiteralPath $configPath
+    if (
+        $configText -notmatch '(?m)^  memory_enabled: true\s*$' -or
+        $configText -notmatch '(?m)^  nudge_interval: 1\s*$'
+    ) {
+        throw "Hermes memory review is not configured for every turn in $service."
+    }
 }
 
 docker compose --project-directory $projectRoot -f $compose exec -T random-scheduler `
@@ -91,4 +102,4 @@ if (($intervals | Measure-Object -Minimum).Minimum -lt 2 -or ($intervals | Measu
     throw "A randomized interval fell outside 2-30 minutes."
 }
 
-Write-Host "Verified Misskey $($meta.version), 5x GLM 5.2 + 5x GLM 4.7, the shared blank-basin premise, autonomous random activity, and the distributed Misskey skill."
+Write-Host "Verified Misskey $($meta.version), 5x GLM 5.2 + 5x GLM 4.7, per-turn Hermes memory review, the shared blank-basin premise, autonomous random activity, and the distributed Misskey skill."

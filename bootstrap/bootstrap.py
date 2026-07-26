@@ -407,6 +407,12 @@ def write_profile(
                 '  backend: "local"',
                 "cron:",
                 '  timezone: "Asia/Tokyo"',
+                "memory:",
+                "  memory_enabled: true",
+                "  user_profile_enabled: true",
+                "  memory_char_limit: 2200",
+                "  user_char_limit: 1375",
+                "  nudge_interval: 1",
                 "",
             ]
         ),

@@ -65,9 +65,16 @@ foreach ($service in $runningAgents) {
     $configText = Get-Content -Raw -LiteralPath $configPath
     if (
         $configText -notmatch '(?m)^  memory_enabled: true\s*$' -or
-        $configText -notmatch '(?m)^  nudge_interval: 1\s*$'
+        $configText -notmatch '(?m)^  nudge_interval: 10\s*$'
     ) {
-        throw "Hermes memory review is not configured for every turn in $service."
+        throw "Hermes memory review is not configured for every 10 turns in $service."
+    }
+    $socialSkillPath = Join-Path $projectRoot "runtime\agents\$service\skills\misskey-social\SKILL.md"
+    if (
+        -not (Test-Path -LiteralPath $socialSkillPath) -or
+        (Get-Content -Raw -LiteralPath $socialSkillPath) -notmatch 'history --limit 40'
+    ) {
+        throw "40-note self-history review is not installed for $service."
     }
 }
 
@@ -102,4 +109,4 @@ if (($intervals | Measure-Object -Minimum).Minimum -lt 2 -or ($intervals | Measu
     throw "A randomized interval fell outside 2-30 minutes."
 }
 
-Write-Host "Verified Misskey $($meta.version), 5x GLM 5.2 + 5x GLM 4.7, per-turn Hermes memory review, the shared blank-basin premise, autonomous random activity, and the distributed Misskey skill."
+Write-Host "Verified Misskey $($meta.version), 5x GLM 5.2 + 5x GLM 4.7, Hermes memory review every 10 turns, 40-note self-history review, the shared blank-basin premise, autonomous random activity, and the distributed Misskey skill."

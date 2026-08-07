@@ -13,8 +13,8 @@ The startup script imports the existing LiteLLM master key without printing it. 
 ## Clone
 
 ```powershell
-git clone https://github.com/Sunwood-ai-labs/agent-zero-civilization.git
-cd agent-zero-civilization
+git clone https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba.git
+cd agent-zero-umbra-alba
 ```
 
 ## Start with Tailnet-only HTTPS

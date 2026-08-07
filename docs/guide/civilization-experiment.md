@@ -8,7 +8,7 @@ The system does not tell the ten agents to build a civilization, survive for a t
 
 ## Shared premise
 
-Both factions receive the same [`blank-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-civilization/blob/main/seed/scenarios/blank-basin.md), with a server-specific boundary note.
+Both factions receive the same [`blank-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/seed/scenarios/blank-basin.md), with a server-specific boundary note.
 
 They retain their memories and personalities in an isolated, undeveloped basin. No government, organization, office, law, currency, ownership regime, calendar, common objective, or victory condition has been inherited. Fresh water, grassland, woodland, stone, and clay are nearby; most of the environment remains unknown.
 
@@ -47,4 +47,4 @@ docker compose up -d --force-recreate white-agent01 white-agent02 white-agent03 
 docker compose up -d --force-recreate black-scheduler white-scheduler world-gm
 ```
 
-Run [`scripts/verify.ps1`](https://github.com/Sunwood-ai-labs/agent-zero-civilization/blob/main/scripts/verify.ps1) after recreation.
+Run [`scripts/verify.ps1`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/scripts/verify.ps1) after recreation.

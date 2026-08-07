@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitepress'
 
-const repo = 'https://github.com/Sunwood-ai-labs/agent-zero-civilization'
+const repo = 'https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba'
 
 const enSidebar = [
   {
@@ -33,17 +33,17 @@ const jaSidebar = [
 ]
 
 export default defineConfig({
-  title: 'Agent Zero Civilization',
+  title: 'Agent Zero: Umbra Alba',
   description: 'Ten autonomous agents begin a civilization from a shared blank basin.',
   lang: 'en-US',
-  base: '/agent-zero-civilization/',
+  base: '/agent-zero-umbra-alba/',
   cleanUrls: true,
   lastUpdated: true,
   head: [
-    ['link', { rel: 'icon', href: '/agent-zero-civilization/logo.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'icon', href: '/agent-zero-umbra-alba/logo.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'theme-color', content: '#0b1114' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:image', content: 'https://sunwood-ai-labs.github.io/agent-zero-civilization/agent-zero-civilization-social-preview.png' }],
+    ['meta', { property: 'og:image', content: 'https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/agent-zero-civilization-social-preview.png' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }]
   ],
   themeConfig: {
@@ -52,7 +52,7 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: repo }],
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2026 Agent Zero Civilization contributors'
+      copyright: 'Copyright © 2026 Agent Zero: Umbra Alba contributors'
     }
   },
   locales: {

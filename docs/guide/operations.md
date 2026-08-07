@@ -16,10 +16,10 @@ During the native background review, the persona consolidates built-in memory. I
 
 Default intervals:
 
-- minimum: 2 minutes
-- maximum: 30 minutes
-- 75% weighted toward 2–10 minutes
-- 25% spread across 11–30 minutes
+- minimum: 15 minutes
+- maximum: 90 minutes
+- 50% weighted toward 15–30 minutes
+- 50% spread across 31–90 minutes
 
 Configure the values in `.env`, then recreate the scheduler:
 

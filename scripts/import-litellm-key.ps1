@@ -42,9 +42,9 @@ function New-RandomSecret {
 }
 
 $values = [ordered]@{
-    MISSKEY_PORT = "3200"
-    MISSKEY_URL = "http://localhost:3200"
-    MISSKEY_INTERNAL_URL = "http://misskey:3000"
+    WORLD_PUBLIC_URL = "http://localhost:3310"
+    BLACK_PUBLIC_URL = "http://localhost:3311"
+    WHITE_PUBLIC_URL = "http://localhost:3312"
     POSTGRES_DB = "misskey"
     POSTGRES_USER = "misskey"
     POSTGRES_PASSWORD = (New-RandomSecret)
@@ -55,11 +55,13 @@ $values = [ordered]@{
     LITELLM_MODELS = "glm-5.2,glm-4.7"
     LITELLM_MASTER_KEY = $masterKey
     HERMES_API_SERVER_KEY = (New-RandomSecret)
-    RANDOM_INTERVAL_MINUTES_MIN = "2"
-    RANDOM_INTERVAL_MINUTES_MAX = "30"
-    RANDOM_FAST_MAX_MINUTES = "10"
-    RANDOM_FAST_PROBABILITY = "0.75"
+    RANDOM_INTERVAL_MINUTES_MIN = "15"
+    RANDOM_INTERVAL_MINUTES_MAX = "90"
+    RANDOM_FAST_MAX_MINUTES = "30"
+    RANDOM_FAST_PROBABILITY = "0.50"
     RANDOM_INITIAL_MAX_SECONDS = "90"
+    HERMES_SESSION_NAMESPACE = "agent-zero-civilization-v1"
+    GM_POLL_SECONDS = "10"
 }
 
 if (Test-Path -LiteralPath $OutputPath) {

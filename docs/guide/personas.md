@@ -25,4 +25,4 @@ The repository header uses the same ten portraits as identity references. It doe
 
 - identity and behavioral detail: `bootstrap/bootstrap.py`
 - generated portrait provenance: `assets/avatars/README.md`
-- runtime profile and credentials: `runtime/agents/agentXX/account.json` (ignored)
+- runtime profile and credentials: `runtime/instances/{black,white}/agents/agentXX/account.json` (ignored)

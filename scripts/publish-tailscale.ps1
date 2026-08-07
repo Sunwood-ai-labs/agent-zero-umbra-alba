@@ -1,10 +1,13 @@
 [CmdletBinding()]
 param(
     [ValidateRange(1, 65535)]
-    [int]$HttpsPort = 8446,
+    [int]$WorldHttpsPort = 8470,
 
     [ValidateRange(1, 65535)]
-    [int]$LocalPort = 3200,
+    [int]$BlackHttpsPort = 8471,
+
+    [ValidateRange(1, 65535)]
+    [int]$WhiteHttpsPort = 8472,
 
     [string]$EnvPath = (Join-Path (Split-Path $PSScriptRoot -Parent) ".env")
 )
@@ -28,27 +31,40 @@ if ([string]::IsNullOrWhiteSpace($dnsName)) {
     throw "Tailscale DNS name was not available. Enable MagicDNS for the tailnet."
 }
 
-$publicUrl = "https://${dnsName}:$HttpsPort"
+$routes = @(
+    @{ Key = "WORLD_PUBLIC_URL"; HttpsPort = $WorldHttpsPort; LocalPort = 3310 },
+    @{ Key = "BLACK_PUBLIC_URL"; HttpsPort = $BlackHttpsPort; LocalPort = 3311 },
+    @{ Key = "WHITE_PUBLIC_URL"; HttpsPort = $WhiteHttpsPort; LocalPort = 3312 }
+)
 
-tailscale serve --bg --yes --https=$HttpsPort "http://127.0.0.1:$LocalPort"
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to configure Tailscale Serve on HTTPS port $HttpsPort."
+foreach ($route in $routes) {
+    tailscale serve --bg --yes --https=$($route.HttpsPort) "http://127.0.0.1:$($route.LocalPort)"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to configure Tailscale Serve on HTTPS port $($route.HttpsPort)."
+    }
 }
 
 $lines = [Collections.Generic.List[string]]::new()
 $updated = $false
 foreach ($line in [IO.File]::ReadAllLines($EnvPath)) {
-    if ($line -match "^MISSKEY_URL=") {
-        $lines.Add("MISSKEY_URL=$publicUrl")
-        $updated = $true
+    $matched = $false
+    foreach ($route in $routes) {
+        if ($line -match "^$($route.Key)=") {
+            $lines.Add("$($route.Key)=https://${dnsName}:$($route.HttpsPort)")
+            $matched = $true
+            $updated = $true
+            break
+        }
     }
-    else {
+    if (-not $matched) {
         $lines.Add($line)
     }
 }
-if (-not $updated) {
-    $lines.Add("MISSKEY_URL=$publicUrl")
+foreach ($route in $routes) {
+    if (-not ($lines | Where-Object { $_ -match "^$($route.Key)=" })) {
+        $lines.Add("$($route.Key)=https://${dnsName}:$($route.HttpsPort)")
+    }
 }
 
 [IO.File]::WriteAllLines($EnvPath, $lines, [Text.UTF8Encoding]::new($false))
-Write-Host "Configured Tailnet-only Misskey URL: $publicUrl"
+Write-Host "Configured Tailnet-only URLs: world=https://${dnsName}:$WorldHttpsPort, black=https://${dnsName}:$BlackHttpsPort, white=https://${dnsName}:$WhiteHttpsPort"

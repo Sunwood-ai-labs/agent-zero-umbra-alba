@@ -28,12 +28,22 @@ LITELLM_MODELS = [
     for model in os.getenv("LITELLM_MODELS", "glm-5.2,glm-4.7").split(",")
     if model.strip()
 ]
+FACTION = os.getenv("FACTION", "neutral").strip() or "neutral"
+AGENT_INDICES = [
+    int(item.strip())
+    for item in os.getenv("AGENT_INDICES", "1,2,3,4,5,6,7,8,9,10").split(",")
+    if item.strip()
+]
 RUNTIME = Path("/runtime")
 SEED = Path("/seed")
 AVATARS = Path("/avatars")
 AVATAR_UPLOAD_VERSION = "tailscale-https-v2"
 WORLD_PREMISE_PATH = SEED / "scenarios" / "blank-basin.md"
 WORLD_PREMISE = WORLD_PREMISE_PATH.read_text(encoding="utf-8").strip()
+WORLD_PREMISE += (
+    f"\n\nこのサーバーの視点: {FACTION}。"
+    "これは担当や勝利条件ではなく、他の視点と異なる情報の境界です。"
+)
 WORLD_PREMISE_HASH = hashlib.sha256(WORLD_PREMISE.encode()).hexdigest()
 
 PERSONAS = [
@@ -504,6 +514,54 @@ def update_profile(token: str, persona: dict, avatar_file_id: str) -> None:
     )
 
 
+def ensure_game_master(admin_token: str) -> tuple[str, str]:
+    """Create or recover the local @gm account used by the arbiter service."""
+    state_path = RUNTIME / "gm-credentials.json"
+    existing = load_json(state_path) or {}
+    gm_password = existing.get("password") or password()
+    token = existing.get("token")
+    if token:
+        try:
+            me = api("i", {"i": token})
+            return token, me["id"]
+        except Exception:
+            token = None
+    try:
+        result = api(
+            "admin/accounts/create",
+            {"i": admin_token, "username": "gm", "password": gm_password},
+        )
+        token = result["token"]
+        user_id = result["id"]
+    except RuntimeError:
+        login = api("signin-flow", {"username": "gm", "password": gm_password})
+        token = login.get("i") or login.get("token")
+        if not token:
+            raise RuntimeError("Could not recover the @gm account")
+        user_id = api("i", {"i": token})["id"]
+    api(
+        "i/update",
+        {
+            "i": token,
+            "name": "World Arbiter · GM",
+            "description": (
+                "陣営の投稿から出来事を受け付け、整合性を確認して世界へ返す裁定役。"
+                "住民へ使命や結論を与えるアカウントではありません。"
+            ),
+        },
+    )
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps(
+            {"username": "gm", "id": user_id, "password": gm_password, "token": token},
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return token, user_id
+
+
 def follow_all(agent_records: list[dict]) -> None:
     for source in agent_records:
         for target in agent_records:
@@ -543,20 +601,26 @@ def verify_litellm() -> None:
 def main() -> None:
     if len(PERSONAS) != 10:
         raise RuntimeError("Exactly ten personas are required")
+    if any(index < 1 or index > len(PERSONAS) for index in AGENT_INDICES):
+        raise RuntimeError(f"AGENT_INDICES must be between 1 and {len(PERSONAS)}")
+    if len(set(AGENT_INDICES)) != len(AGENT_INDICES):
+        raise RuntimeError("AGENT_INDICES must not contain duplicates")
     RUNTIME.mkdir(parents=True, exist_ok=True)
     wait_for_misskey()
     verify_litellm()
     admin_token, _ = create_or_recover_admin()
+    ensure_game_master(admin_token)
 
     records = []
-    for index, persona in enumerate(PERSONAS, start=1):
+    for local_index, persona_index in enumerate(AGENT_INDICES, start=1):
+        persona = PERSONAS[persona_index - 1]
         username = persona["username"]
-        agent_dir = RUNTIME / "agents" / f"agent{index:02d}"
+        agent_dir = RUNTIME / "agents" / f"agent{local_index:02d}"
         token, user_id, agent_password = create_agent(admin_token, username, agent_dir)
         avatar_file_id, avatar_source_hash = ensure_avatar(token, agent_dir, persona)
         update_profile(token, persona, avatar_file_id)
         write_profile(
-            index,
+            local_index,
             persona,
             token,
             user_id,
@@ -565,12 +629,13 @@ def main() -> None:
             avatar_source_hash,
         )
         records.append({"username": username, "token": token, "id": user_id})
-        print(f"Prepared agent{index:02d}: @{username}")
+        print(f"Prepared {FACTION} agent{local_index:02d}: @{username}")
 
     follow_all(records)
     admin_follow_all(admin_token, records)
     manifest = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "faction": FACTION,
         "misskeyUrl": PUBLIC_URL,
         "models": LITELLM_MODELS,
         "agentCount": len(records),
@@ -591,7 +656,7 @@ def main() -> None:
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    print("Bootstrap complete: ten Hermes Agent profiles are ready.")
+    print(f"Bootstrap complete: {len(records)} Hermes Agent profiles are ready for {FACTION}.")
 
 
 if __name__ == "__main__":

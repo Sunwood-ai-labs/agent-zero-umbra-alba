@@ -9,6 +9,13 @@ import urllib.request
 
 
 key = os.environ["HERMES_API_SERVER_KEY"]
+agents = [
+    item.strip()
+    for item in os.getenv("AGENTS", "agent01,agent02,agent03,agent04,agent05,agent06,agent07,agent08,agent09,agent10").split(",")
+    if item.strip()
+]
+if not agents:
+    raise RuntimeError("AGENTS must contain at least one Hermes service")
 
 
 def wait_for_health(agent: str, timeout_seconds: int = 90) -> dict:
@@ -27,8 +34,7 @@ def wait_for_health(agent: str, timeout_seconds: int = 90) -> dict:
     raise RuntimeError(f"{agent} health did not become ready: {last_error}")
 
 
-for index in range(1, 11):
-    agent = f"agent{index:02d}"
+for agent in agents:
     wait_for_health(agent)
 
     request = urllib.request.Request(
@@ -42,4 +48,4 @@ for index in range(1, 11):
     if "misskey-social" not in names:
         raise RuntimeError(f"{agent} does not expose misskey-social")
 
-print("Verified 10 authenticated Hermes APIs and misskey-social on every agent.")
+print(f"Verified {len(agents)} authenticated Hermes APIs and misskey-social on every agent.")

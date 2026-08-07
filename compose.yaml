@@ -1,14 +1,31 @@
 name: agent-zero-civilization
 
-x-hermes-common: &hermes-common
+x-db: &db
+  image: postgres:18-alpine
+  restart: unless-stopped
+  environment:
+    POSTGRES_DB: misskey
+    POSTGRES_USER: misskey
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+    interval: 5s
+    timeout: 5s
+    retries: 30
+
+x-redis: &redis
+  image: redis:7-alpine
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+
+x-agent: &agent
   image: nousresearch/hermes-agent:v2026.7.20
   restart: unless-stopped
   command: ["gateway", "run"]
-  depends_on:
-    bootstrap:
-      condition: service_completed_successfully
-  networks:
-    - social
   environment:
     TZ: Asia/Tokyo
     API_SERVER_ENABLED: "true"
@@ -17,172 +34,267 @@ x-hermes-common: &hermes-common
     API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
 
 services:
-  config-init:
+  world-db:
+    <<: *db
+    volumes: ["./runtime/instances/world/db:/var/lib/postgresql"]
+    networks: {world-net: {aliases: [db]}}
+  world-redis:
+    <<: *redis
+    volumes: ["./runtime/instances/world/redis:/data"]
+    networks: {world-net: {aliases: [redis]}}
+  world-config:
     image: python:3.12-alpine
     restart: "no"
+    depends_on:
+      world-db: {condition: service_healthy}
+      world-redis: {condition: service_healthy}
     environment:
-      MISSKEY_URL: ${MISSKEY_URL}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      MISSKEY_URL: ${WORLD_PUBLIC_URL:-http://localhost:3310}
+      POSTGRES_DB: misskey
+      POSTGRES_USER: misskey
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
     command: ["python", "/app/configure_misskey.py"]
     volumes:
       - ./bootstrap:/app:ro
       - ./.config:/template:ro
-      - ./runtime:/runtime
-    networks:
-      - social
-
-  db:
-    image: postgres:18-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - ./db:/var/lib/postgresql
-    networks:
-      - social
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - ./redis:/data
-    networks:
-      - social
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 30
-
-  misskey:
+      - ./runtime/instances/world:/runtime
+    networks: [world-net]
+  world-misskey:
     image: misskey/misskey:2026.6.0
     restart: unless-stopped
     depends_on:
-      config-init:
-        condition: service_completed_successfully
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:3201:3000"
+      world-config: {condition: service_completed_successfully}
+      world-db: {condition: service_healthy}
+      world-redis: {condition: service_healthy}
+    ports: ["127.0.0.1:3310:3000"]
     environment:
-      MISSKEY_URL: ${MISSKEY_URL}
+      MISSKEY_URL: ${WORLD_PUBLIC_URL:-http://localhost:3310}
     volumes:
-      - ./runtime/misskey-config:/misskey/.config:ro
-      - ./files:/misskey/files
-    networks:
-      - social
-
-  lan-proxy:
-    image: nginx:1.29-alpine
-    restart: unless-stopped
-    depends_on:
-      misskey:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:${MISSKEY_PORT:-3200}:3200"
-    volumes:
-      - ./diagnostics/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - social
-
-  bootstrap:
+      - ./runtime/instances/world/misskey-config:/misskey/.config:ro
+      - ./runtime/instances/world/files:/misskey/files
+    networks: [world-net]
+  world-bootstrap:
     image: python:3.12-alpine
     restart: "no"
-    depends_on:
-      misskey:
-        condition: service_started
+    depends_on: {world-misskey: {condition: service_started}}
     environment:
-      MISSKEY_URL: ${MISSKEY_INTERNAL_URL:-http://misskey:3000}
-      MISSKEY_PUBLIC_URL: ${MISSKEY_URL}
+      MISSKEY_URL: http://world-misskey:3000
+      MISSKEY_PUBLIC_URL: ${WORLD_PUBLIC_URL:-http://localhost:3310}
       MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
-      MISSKEY_ADMIN_USERNAME: ${MISSKEY_ADMIN_USERNAME:-admin}
+      MISSKEY_ADMIN_USERNAME: admin
       LITELLM_API_BASE: ${LITELLM_API_BASE}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
-      TZ: Asia/Tokyo
+      FACTION: world
+      AGENT_INDICES: ""
     command: ["python", "/app/bootstrap.py"]
     volumes:
       - ./bootstrap:/app:ro
       - ./seed:/seed:ro
       - ./assets/avatars:/avatars:ro
-      - ./runtime:/runtime
-    networks:
-      - social
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - ./runtime/instances/world:/runtime
+    networks: [world-net]
 
-  agent01:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent01:/opt/data"]
-  agent02:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent02:/opt/data"]
-  agent03:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent03:/opt/data"]
-  agent04:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent04:/opt/data"]
-  agent05:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent05:/opt/data"]
-  agent06:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent06:/opt/data"]
-  agent07:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent07:/opt/data"]
-  agent08:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent08:/opt/data"]
-  agent09:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent09:/opt/data"]
-  agent10:
-    <<: *hermes-common
-    volumes: ["./runtime/agents/agent10:/opt/data"]
+  black-db:
+    <<: *db
+    volumes: ["./runtime/instances/black/db:/var/lib/postgresql"]
+    networks: {black-net: {aliases: [db]}}
+  black-redis:
+    <<: *redis
+    volumes: ["./runtime/instances/black/redis:/data"]
+    networks: {black-net: {aliases: [redis]}}
+  black-config:
+    image: python:3.12-alpine
+    restart: "no"
+    depends_on:
+      black-db: {condition: service_healthy}
+      black-redis: {condition: service_healthy}
+    environment:
+      MISSKEY_URL: ${BLACK_PUBLIC_URL:-http://localhost:3311}
+      POSTGRES_DB: misskey
+      POSTGRES_USER: misskey
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
+    command: ["python", "/app/configure_misskey.py"]
+    volumes:
+      - ./bootstrap:/app:ro
+      - ./.config:/template:ro
+      - ./runtime/instances/black:/runtime
+    networks: [black-net]
+  black-misskey:
+    image: misskey/misskey:2026.6.0
+    restart: unless-stopped
+    depends_on:
+      black-config: {condition: service_completed_successfully}
+      black-db: {condition: service_healthy}
+      black-redis: {condition: service_healthy}
+    ports: ["127.0.0.1:3311:3000"]
+    environment:
+      MISSKEY_URL: ${BLACK_PUBLIC_URL:-http://localhost:3311}
+    volumes:
+      - ./runtime/instances/black/misskey-config:/misskey/.config:ro
+      - ./runtime/instances/black/files:/misskey/files
+    networks: [black-net]
+  black-bootstrap:
+    image: python:3.12-alpine
+    restart: "no"
+    depends_on: {black-misskey: {condition: service_started}}
+    environment:
+      MISSKEY_URL: http://black-misskey:3000
+      MISSKEY_PUBLIC_URL: ${BLACK_PUBLIC_URL:-http://localhost:3311}
+      MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
+      MISSKEY_ADMIN_USERNAME: admin
+      LITELLM_API_BASE: ${LITELLM_API_BASE}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
+      FACTION: black
+      AGENT_INDICES: "1,3,5,7,9"
+    command: ["python", "/app/bootstrap.py"]
+    volumes:
+      - ./bootstrap:/app:ro
+      - ./seed:/seed:ro
+      - ./assets/avatars:/avatars:ro
+      - ./runtime/instances/black:/runtime
+    networks: [black-net]
 
-  random-scheduler:
+  white-db:
+    <<: *db
+    volumes: ["./runtime/instances/white/db:/var/lib/postgresql"]
+    networks: {white-net: {aliases: [db]}}
+  white-redis:
+    <<: *redis
+    volumes: ["./runtime/instances/white/redis:/data"]
+    networks: {white-net: {aliases: [redis]}}
+  white-config:
+    image: python:3.12-alpine
+    restart: "no"
+    depends_on:
+      white-db: {condition: service_healthy}
+      white-redis: {condition: service_healthy}
+    environment:
+      MISSKEY_URL: ${WHITE_PUBLIC_URL:-http://localhost:3312}
+      POSTGRES_DB: misskey
+      POSTGRES_USER: misskey
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
+    command: ["python", "/app/configure_misskey.py"]
+    volumes:
+      - ./bootstrap:/app:ro
+      - ./.config:/template:ro
+      - ./runtime/instances/white:/runtime
+    networks: [white-net]
+  white-misskey:
+    image: misskey/misskey:2026.6.0
+    restart: unless-stopped
+    depends_on:
+      white-config: {condition: service_completed_successfully}
+      white-db: {condition: service_healthy}
+      white-redis: {condition: service_healthy}
+    ports: ["127.0.0.1:3312:3000"]
+    environment:
+      MISSKEY_URL: ${WHITE_PUBLIC_URL:-http://localhost:3312}
+    volumes:
+      - ./runtime/instances/white/misskey-config:/misskey/.config:ro
+      - ./runtime/instances/white/files:/misskey/files
+    networks: [white-net]
+  white-bootstrap:
+    image: python:3.12-alpine
+    restart: "no"
+    depends_on: {white-misskey: {condition: service_started}}
+    environment:
+      MISSKEY_URL: http://white-misskey:3000
+      MISSKEY_PUBLIC_URL: ${WHITE_PUBLIC_URL:-http://localhost:3312}
+      MISSKEY_SETUP_PASSWORD: ${MISSKEY_SETUP_PASSWORD}
+      MISSKEY_ADMIN_USERNAME: admin
+      LITELLM_API_BASE: ${LITELLM_API_BASE}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
+      FACTION: white
+      AGENT_INDICES: "2,4,6,8,10"
+    command: ["python", "/app/bootstrap.py"]
+    volumes:
+      - ./bootstrap:/app:ro
+      - ./seed:/seed:ro
+      - ./assets/avatars:/avatars:ro
+      - ./runtime/instances/white:/runtime
+    networks: [white-net]
+
+  black-agent01: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent01:/opt/data"], networks: [black-net]}
+  black-agent02: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent02:/opt/data"], networks: [black-net]}
+  black-agent03: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent03:/opt/data"], networks: [black-net]}
+  black-agent04: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent04:/opt/data"], networks: [black-net]}
+  black-agent05: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent05:/opt/data"], networks: [black-net]}
+  white-agent01: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent01:/opt/data"], networks: [white-net]}
+  white-agent02: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent02:/opt/data"], networks: [white-net]}
+  white-agent03: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent03:/opt/data"], networks: [white-net]}
+  white-agent04: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent04:/opt/data"], networks: [white-net]}
+  white-agent05: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent05:/opt/data"], networks: [white-net]}
+
+  black-scheduler:
     image: python:3.12-alpine
     restart: unless-stopped
     command: ["python", "/app/random_scheduler.py"]
     depends_on:
-      agent01: { condition: service_started }
-      agent02: { condition: service_started }
-      agent03: { condition: service_started }
-      agent04: { condition: service_started }
-      agent05: { condition: service_started }
-      agent06: { condition: service_started }
-      agent07: { condition: service_started }
-      agent08: { condition: service_started }
-      agent09: { condition: service_started }
-      agent10: { condition: service_started }
+      black-agent01: {condition: service_started}
+      black-agent02: {condition: service_started}
+      black-agent03: {condition: service_started}
+      black-agent04: {condition: service_started}
+      black-agent05: {condition: service_started}
     environment:
       HERMES_API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
-      RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-2}
-      RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-30}
-      RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-10}
-      RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.75}
+      AGENTS: black-agent01,black-agent02,black-agent03,black-agent04,black-agent05
+      FACTION: 黒猫
+      RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-15}
+      RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-90}
+      RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-30}
+      RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.50}
       RANDOM_INITIAL_MAX_SECONDS: ${RANDOM_INITIAL_MAX_SECONDS:-90}
-      HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-misskey-blank-basin-v1}
-      TZ: Asia/Tokyo
+      HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-black-v1}
+    volumes: ["./scheduler:/app:ro", "./runtime/instances/black/scheduler:/state"]
+    networks: [black-net]
+  white-scheduler:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    command: ["python", "/app/random_scheduler.py"]
+    depends_on:
+      white-agent01: {condition: service_started}
+      white-agent02: {condition: service_started}
+      white-agent03: {condition: service_started}
+      white-agent04: {condition: service_started}
+      white-agent05: {condition: service_started}
+    environment:
+      HERMES_API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
+      AGENTS: white-agent01,white-agent02,white-agent03,white-agent04,white-agent05
+      FACTION: 白猫
+      RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-15}
+      RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-90}
+      RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-30}
+      RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.50}
+      RANDOM_INITIAL_MAX_SECONDS: ${RANDOM_INITIAL_MAX_SECONDS:-90}
+      HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-white-v1}
+    volumes: ["./scheduler:/app:ro", "./runtime/instances/white/scheduler:/state"]
+    networks: [white-net]
+
+  world-gm:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    command: ["python", "/app/gm.py"]
+    depends_on:
+      world-bootstrap: {condition: service_completed_successfully}
+      black-bootstrap: {condition: service_completed_successfully}
+      white-bootstrap: {condition: service_completed_successfully}
+    environment:
+      BLACK_URL: http://black-misskey:3000
+      WHITE_URL: http://white-misskey:3000
+      WORLD_URL: http://world-misskey:3000
+      GM_POLL_SECONDS: ${GM_POLL_SECONDS:-10}
     volumes:
-      - ./scheduler:/app:ro
-      - ./runtime/scheduler:/state
-    networks:
-      - social
+      - ./gm:/app:ro
+      - ./runtime/instances:/state
+    networks: [world-net, black-net, white-net]
 
 networks:
-  social:
+  world-net: {}
+  black-net: {}
+  white-net: {}

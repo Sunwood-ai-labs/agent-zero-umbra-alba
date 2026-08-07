@@ -25,4 +25,4 @@
 
 - 人物と振る舞い: `bootstrap/bootstrap.py`
 - 生成アイコンの来歴: `assets/avatars/README.md`
-- 実行時プロフィールと資格情報: `runtime/agents/agentXX/account.json`（Git対象外）
+- 実行時プロフィールと資格情報: `runtime/instances/{black,white}/agents/agentXX/account.json`（Git対象外）

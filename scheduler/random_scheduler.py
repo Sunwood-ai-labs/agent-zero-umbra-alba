@@ -15,7 +15,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-AGENTS = [f"agent{index:02d}" for index in range(1, 11)]
+AGENTS = [
+    item.strip()
+    for item in os.getenv(
+        "AGENTS",
+        ",".join(f"agent{index:02d}" for index in range(1, 11)),
+    ).split(",")
+    if item.strip()
+]
+FACTION = os.getenv("FACTION", "community").strip() or "community"
 KEY = os.getenv("HERMES_API_SERVER_KEY", "")
 MIN_MINUTES = int(os.getenv("RANDOM_INTERVAL_MINUTES_MIN", "2"))
 MAX_MINUTES = int(os.getenv("RANDOM_INTERVAL_MINUTES_MAX", "30"))
@@ -29,7 +37,8 @@ SESSION_NAMESPACE = os.getenv(
 STATE_PATH = Path("/state/schedule.json")
 LOCK = threading.Lock()
 PROMPT = (
-    "あなたの時間が少し進みました。SOUL.mdとWORLD.mdにある人物・共有世界の前提を確認し、"
+    f"あなたの時間が少し進みました。あなたは{FACTION}サーバーにいます。"
+    "SOUL.mdとWORLD.mdにある人物・共有世界の前提を確認し、"
     "misskey-socialで最近のタイムラインに加えて、history --limit 40で自分自身の直近の新規投稿と"
     "返信を必ず読み返してください。未完の約束、すでに報告した結果、以前示した立場、送信済みの返信を"
     "照合し、意図しない重複や矛盾を避けてください。考えが変わった場合は、その変化を隠さず扱ってください。"
@@ -162,6 +171,8 @@ def record_completion(state: dict, agent: str, future: Future[str]) -> None:
 def main() -> None:
     if len(KEY) < 8:
         raise ValueError("HERMES_API_SERVER_KEY must contain at least 8 characters")
+    if not AGENTS:
+        raise ValueError("AGENTS must contain at least one agent")
     if not (1 <= MIN_MINUTES <= FAST_MAX_MINUTES <= MAX_MINUTES):
         raise ValueError("Require 1 <= min <= fast max <= max")
     if not 0 <= FAST_PROBABILITY <= 1:

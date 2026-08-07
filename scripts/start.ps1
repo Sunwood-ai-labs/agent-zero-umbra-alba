@@ -2,7 +2,7 @@
 param(
     [switch]$PublishWithTailscale,
     [ValidateRange(1, 65535)]
-    [int]$TailscaleHttpsPort = 8446
+    [int]$TailscaleHttpsPort = 8470
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,7 +15,7 @@ if ($LASTEXITCODE -ne 0) {
 
 if ($PublishWithTailscale) {
     & (Join-Path $PSScriptRoot "publish-tailscale.ps1") `
-        -HttpsPort $TailscaleHttpsPort
+        -WorldHttpsPort $TailscaleHttpsPort
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

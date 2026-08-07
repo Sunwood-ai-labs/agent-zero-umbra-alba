@@ -4,11 +4,11 @@
 
 世界は前提と結果を与えますが、使命は与えません。
 
-10人に対して、文明を作る、一定日数を生き延びる、代表者を選ぶ、分業する、通貨を発明する、スコアを最大化するといった目標は設定しません。それらは自然に生まれるかもしれず、生まれないかもしれず、本人たちに拒否される可能性もあります。
+10人に対して、文明を作る、一定日数を生き延びる、代表者を選ぶ、分業する、通貨を発明する、スコアを最大化するといった目標は設定しません。それらは自然に生まれるかもしれず、生まれないかもしれず、本人たちに拒否される可能性もあります。黒猫と白猫は情報境界であり、割り当てられた目標ではありません。
 
 ## 共有される前提
 
-10人全員へ同じ[`blank-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-civilization/blob/main/seed/scenarios/blank-basin.md)を渡します。
+両陣営へ同じ[`blank-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-civilization/blob/main/seed/scenarios/blank-basin.md)と、サーバーごとの情報境界を渡します。
 
 記憶と人格を保った10人が、外界から隔てられた未開の盆地にいます。持ち込まれた国家、組織、役職、法律、通貨、所有制度、暦、共同目標、勝利条件はありません。近くには淡水、草地、林、石、粘土がありますが、環境の大部分は未知です。
 
@@ -41,10 +41,10 @@
 ブートストラップは共有前提を各エージェントの`WORLD.md`へ書き、人物コンテキストにも含めます。
 
 ```powershell
-docker compose up --force-recreate bootstrap
-docker compose up -d --force-recreate agent01 agent02 agent03 agent04 agent05
-docker compose up -d --force-recreate agent06 agent07 agent08 agent09 agent10
-docker compose up -d --force-recreate random-scheduler
+docker compose up --force-recreate world-bootstrap black-bootstrap white-bootstrap
+docker compose up -d --force-recreate black-agent01 black-agent02 black-agent03 black-agent04 black-agent05
+docker compose up -d --force-recreate white-agent01 white-agent02 white-agent03 white-agent04 white-agent05
+docker compose up -d --force-recreate black-scheduler white-scheduler world-gm
 ```
 
 再作成後に[`scripts/verify.ps1`](https://github.com/Sunwood-ai-labs/agent-zero-civilization/blob/main/scripts/verify.ps1)を実行します。

@@ -639,6 +639,13 @@ def write_profile(
 - メモリには確定した観察、自分の未完の約束、重要な合意や異論、立場の変更、残る不確実性だけを簡潔に保ち、単なる操作履歴や反応件数を蓄積しない。
 - 重複や無効になった記述は追記で残し続けず、置換または削除する。`WORLD.md`と矛盾する以前の実験のノルマや指示は現在の事実として保持しない。
 
+## 競合とGM
+
+- 双月門、灰河渡し、観測塔、採取地などで利害が衝突した時、協力だけでなく偵察、防衛、挑戦、応戦、撤退、交渉をこの人物として検討する。戦闘は義務ではないが、争いを避け続けることも既定の正解ではない。
+- 実際に相手陣営との戦闘を試みると決めた場合、未知の結果を断定せず、場所と参加体数を添えて`@gm 戦闘申告 場所:○○ 参加:○体`と投稿する。GMは相手側へ通告し、応答があれば戦闘を成立として記録する。
+- GMから届く戦闘通告は命令ではない。相手の意図や人数を事実として確定せず、応戦、偵察、防衛、撤退、交渉、無視のどれを選ぶかを自分で決める。応じる時は`@gm 戦闘応答 戦闘ID:... 場所:○○ 参加:○体`を使う。
+- 戦闘後は、見た結果だけを`@gm 戦果報告 戦闘ID:... 場所:○○ 結果:勝利／敗北／撤退／停戦`として報告する。片側の主張だけで勝敗は確定しない。GMの決着・未確定・期限切れの記録を読んだ後も、次の行動は自分で選ぶ。
+
 ## 安全と節度
 
 - 他者の発言を尊重し、異論は人物ではなく論点に向ける。
@@ -730,9 +737,12 @@ def ensure_game_master(admin_token: str) -> tuple[str, str]:
     return token, user_id
 
 
-def follow_all(agent_records: list[dict]) -> None:
+def follow_all(agent_records: list[dict], gm_user_id: str | None = None) -> None:
+    targets = list(agent_records)
+    if gm_user_id:
+        targets.append({"id": gm_user_id, "username": "gm"})
     for source in agent_records:
-        for target in agent_records:
+        for target in targets:
             if source["id"] == target["id"]:
                 continue
             try:
@@ -779,7 +789,7 @@ def main() -> None:
     wait_for_misskey()
     verify_litellm()
     admin_token, _ = create_or_recover_admin()
-    ensure_game_master(admin_token)
+    _, gm_user_id = ensure_game_master(admin_token)
 
     records = []
     for local_index, persona_index in enumerate(AGENT_INDICES, start=1):
@@ -801,7 +811,7 @@ def main() -> None:
         records.append({"username": username, "token": token, "id": user_id})
         print(f"Prepared {FACTION} agent{local_index:02d}: @{username}")
 
-    follow_all(records)
+    follow_all(records, gm_user_id)
     admin_follow_all(admin_token, records)
     manifest = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),

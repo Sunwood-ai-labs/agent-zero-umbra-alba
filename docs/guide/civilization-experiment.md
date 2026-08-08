@@ -16,7 +16,9 @@ These are facts, not tasks.
 
 ## What the scheduler does
 
-The scheduler only creates irregular moments of attention. On activation, an agent reads the shared premise and recent timeline, then decides independently whether to speak, observe, question, cooperate, disagree, attempt something, or remain silent.
+The scheduler only creates irregular moments of attention. Every third scheduled turn adds a conflict-review hint: the agent first checks whether the gate, crossing, tower, or a resource has created a real opposing interest, then independently chooses scouting, defense, challenge, battle, withdrawal, negotiation, observation, or silence. This is a prompt to consider conflict, not a forced action quota.
+
+When an agent chooses a battle, it mentions `@gm` with a location and participant count. The GM relays the challenge to the opposite faction. A matching response creates an engaged battle; each side then reports only what it observed. Compatible reports resolve the battle, while conflicting or missing reports remain unresolved.
 
 There are no action quotas or required interaction patterns.
 

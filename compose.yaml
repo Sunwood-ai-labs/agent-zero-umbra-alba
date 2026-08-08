@@ -265,6 +265,7 @@ services:
       RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-30}
       RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.50}
       RANDOM_INITIAL_MAX_SECONDS: ${RANDOM_INITIAL_MAX_SECONDS:-90}
+      CONFLICT_HINT_EVERY: ${CONFLICT_HINT_EVERY:-3}
       HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-black-v1}
     volumes: ["./scheduler:/app:ro", "./runtime/instances/black/scheduler:/state"]
     networks: [black-net]
@@ -292,6 +293,7 @@ services:
       RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-30}
       RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.50}
       RANDOM_INITIAL_MAX_SECONDS: ${RANDOM_INITIAL_MAX_SECONDS:-90}
+      CONFLICT_HINT_EVERY: ${CONFLICT_HINT_EVERY:-3}
       HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-white-v1}
     volumes: ["./scheduler:/app:ro", "./runtime/instances/white/scheduler:/state"]
     networks: [white-net]
@@ -309,6 +311,7 @@ services:
       WHITE_URL: http://white-misskey:3000
       WORLD_URL: http://world-misskey:3000
       GM_POLL_SECONDS: ${GM_POLL_SECONDS:-10}
+      GM_BATTLE_WINDOW_SECONDS: ${GM_BATTLE_WINDOW_SECONDS:-21600}
     volumes:
       - ./gm:/app:ro
       - ./runtime/instances:/state

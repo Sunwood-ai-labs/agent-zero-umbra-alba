@@ -44,6 +44,7 @@ jobs:
           scheduler/random_scheduler.py
           scheduler/trigger_agent.py
           scheduler/verify_runtime.py
+          gm/gm.py
           seed/skills/misskey-social/scripts/misskey_social.py
 
       - name: Validate Docker Compose

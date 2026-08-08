@@ -1,4 +1,4 @@
-name: agent-zero-civilization
+name: agent-zero-umbra-alba
 
 x-db: &db
   image: postgres:18-alpine

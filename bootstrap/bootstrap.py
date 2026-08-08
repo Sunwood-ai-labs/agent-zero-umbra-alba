@@ -170,7 +170,7 @@ def api(endpoint: str, payload: dict, timeout: int = 30) -> dict:
     request = urllib.request.Request(
         f"{MISSKEY_URL}/api/{endpoint}",
         data=data,
-        headers={"Content-Type": "application/json", "User-Agent": "agent-zero-civilization-bootstrap/1"},
+        headers={"Content-Type": "application/json", "User-Agent": "agent-zero-umbra-alba-bootstrap/1"},
         method="POST",
     )
     try:
@@ -291,7 +291,7 @@ def create_agent(admin_token: str, username: str, agent_dir: Path) -> tuple[str,
 
 
 def upload_avatar(token: str, avatar_path: Path) -> str:
-    boundary = f"----agent-zero-civilization-{uuid.uuid4().hex}"
+    boundary = f"----agent-zero-umbra-alba-{uuid.uuid4().hex}"
     chunks: list[bytes] = []
 
     def add_field(name: str, value: str) -> None:
@@ -327,7 +327,7 @@ def upload_avatar(token: str, avatar_path: Path) -> str:
         data=b"".join(chunks),
         headers={
             "Content-Type": f"multipart/form-data; boundary={boundary}",
-            "User-Agent": "agent-zero-civilization-bootstrap/1",
+            "User-Agent": "agent-zero-umbra-alba-bootstrap/1",
         },
         method="POST",
     )

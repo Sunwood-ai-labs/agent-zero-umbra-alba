@@ -48,7 +48,7 @@ def api(base: str, token: str, endpoint: str, payload: dict) -> object:
     request = urllib.request.Request(
         f"{base.rstrip('/')}/api/{endpoint}",
         data=data,
-        headers={"Content-Type": "application/json", "User-Agent": "agent-zero-civilization-gm/1"},
+        headers={"Content-Type": "application/json", "User-Agent": "agent-zero-umbra-alba-gm/1"},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=20) as response:

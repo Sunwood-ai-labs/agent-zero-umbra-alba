@@ -60,7 +60,7 @@ $values = [ordered]@{
     RANDOM_FAST_MAX_MINUTES = "30"
     RANDOM_FAST_PROBABILITY = "0.50"
     RANDOM_INITIAL_MAX_SECONDS = "90"
-    HERMES_SESSION_NAMESPACE = "agent-zero-civilization-v1"
+    HERMES_SESSION_NAMESPACE = "agent-zero-umbra-alba-v1"
     GM_POLL_SECONDS = "10"
 }
 

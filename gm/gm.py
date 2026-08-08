@@ -23,7 +23,7 @@ from pathlib import Path
 STATE_DIR = Path(os.getenv("GM_STATE_DIR", "/state/gm"))
 STATE_PATH = STATE_DIR / "events.json"
 POLL_SECONDS = int(os.getenv("GM_POLL_SECONDS", "10"))
-LOC_RE = re.compile(r"(?:場所|地点|泉|森|粘土|南岸|北岸|東岸|西岸)\S{0,12}")
+LOC_RE = re.compile(r"(?:双月門|灰河渡し|観測塔|場所|地点|泉|森|粘土|白砂|白土|根張り|煤森|南岸|北岸|東岸|西岸)\S{0,12}")
 BATTLE_WORDS = ("攻撃", "襲撃", "防衛", "戦闘", "侵入", "奪う", "小競り合い")
 DIPLOMACY_WORDS = ("外交", "交易", "交換", "停戦", "交渉", "和平")
 
@@ -78,7 +78,7 @@ def location(text: str) -> str:
 
 
 def participants(text: str) -> int:
-    match = re.search(r"(\d+)\s*人", text)
+    match = re.search(r"(\d+)\s*(?:人|体|匹)", text)
     return max(1, min(int(match.group(1)), 20)) if match else 1
 
 
@@ -144,7 +144,7 @@ def main() -> None:
     state = load_json(STATE_PATH, {"seen": [], "pending": [], "startedAt": time.time()})
     state.setdefault("seen", [])
     state.setdefault("pending", [])
-    print("Agent Zero Civilization GM active: @gm mentions are being watched.", flush=True)
+    print("Twin-Moon Basin GM active: @gm mentions are being watched.", flush=True)
     while True:
         for instance in ("black", "white"):
             try:

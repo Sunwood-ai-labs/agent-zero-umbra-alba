@@ -7,12 +7,12 @@ $compose = Join-Path $projectRoot "compose.yaml"
 
 $instances = @(
     [pscustomobject]@{ Name = "world"; Faction = "world"; Url = "http://127.0.0.1:3310"; ExpectedAgents = 0 },
-    [pscustomobject]@{ Name = "black"; Faction = "black"; Url = "http://127.0.0.1:3311"; ExpectedAgents = 5 },
-    [pscustomobject]@{ Name = "white"; Faction = "white"; Url = "http://127.0.0.1:3312"; ExpectedAgents = 5 }
+    [pscustomobject]@{ Name = "black"; Faction = "black"; Url = "http://127.0.0.1:3311"; ExpectedAgents = 10 },
+    [pscustomobject]@{ Name = "white"; Faction = "white"; Url = "http://127.0.0.1:3312"; ExpectedAgents = 10 }
 )
 $agentInstances = @($instances | Where-Object ExpectedAgents -gt 0)
 
-$premisePath = Join-Path $projectRoot "seed\scenarios\blank-basin.md"
+$premisePath = Join-Path $projectRoot "seed\scenarios\twin-moon-basin.md"
 $premiseText = ((Get-Content -Raw -LiteralPath $premisePath) -replace "`r`n", "`n" -replace "`r", "`n").Trim()
 $sha256 = [System.Security.Cryptography.SHA256]::Create()
 
@@ -23,9 +23,9 @@ try {
         "black-misskey", "black-scheduler",
         "white-misskey", "white-scheduler"
     ) + @(
-        1..5 | ForEach-Object { "black-agent{0:00}" -f $_ }
+        1..10 | ForEach-Object { "black-agent{0:00}" -f $_ }
     ) + @(
-        1..5 | ForEach-Object { "white-agent{0:00}" -f $_ }
+        1..10 | ForEach-Object { "white-agent{0:00}" -f $_ }
     )
     $missingServices = @($requiredServices | Where-Object { $services -notcontains $_ })
     if ($missingServices.Count -gt 0) {
@@ -42,14 +42,25 @@ try {
         if ($manifest.faction -ne $instance.Faction) {
             throw "$($instance.Name) manifest faction is '$($manifest.faction)', expected '$($instance.Faction)'."
         }
+        if ($manifest.species -ne "catfolk") {
+            throw "$($instance.Name) manifest does not identify the inhabitants as catfolk."
+        }
+        $expectedCoat = switch ($instance.Name) {
+            "black" { "黒猫族" }
+            "white" { "白猫族" }
+            default { "猫族" }
+        }
+        if ($manifest.coat -ne $expectedCoat) {
+            throw "$($instance.Name) manifest coat is '$($manifest.coat)', expected '$expectedCoat'."
+        }
         if ([int]$manifest.agentCount -ne $instance.ExpectedAgents) {
             throw "$($instance.Name) expected $($instance.ExpectedAgents) agents, found $($manifest.agentCount)."
         }
 
         $fullPremise = $premiseText + "`n`nこのサーバーの視点: $($instance.Faction)。これは担当や勝利条件ではなく、他の視点と異なる情報の境界です。"
         $premiseHash = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($fullPremise)))).Replace("-", "").ToLowerInvariant()
-        if ($manifest.worldPremise.name -ne "blank-basin" -or $manifest.worldPremise.sha256 -ne $premiseHash) {
-            throw "$($instance.Name) runtime manifest does not contain the current faction-scoped blank-basin premise."
+        if ($manifest.worldPremise.name -ne "twin-moon-basin" -or $manifest.worldPremise.sha256 -ne $premiseHash) {
+            throw "$($instance.Name) runtime manifest does not contain the current faction-scoped twin-moon-basin premise."
         }
 
         $meta = Invoke-RestMethod -Method Post -Uri "$($instance.Url)/api/meta" `
@@ -129,7 +140,7 @@ try {
         "{0}: {1} agents scheduled" -f $instance.Name, $entries.Count
     }
 
-    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 5 black + 5 white Hermes APIs, GM watcher, faction-scoped blank-basin premise, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
+    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
     $scheduleSummary | ForEach-Object { Write-Host $_ }
 }
 finally {

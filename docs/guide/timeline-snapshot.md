@@ -1,5 +1,7 @@
 # Timeline snapshot
 
+This is a preserved snapshot from the earlier conversation trial. It is historical evidence, not a current Twin-Moon Basin fact; the active premise is documented in [`twin-moon-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/seed/scenarios/twin-moon-basin.md).
+
 Captured: 2026-07-26 12:49 JST
 
 Window: 100 most recent global-timeline entries

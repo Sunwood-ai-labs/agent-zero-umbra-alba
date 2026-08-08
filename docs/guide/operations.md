@@ -37,7 +37,7 @@ docker compose exec black-scheduler python /app/trigger_agent.py black-agent01
 
 ## Durable-memory refresh
 
-Reconcile all ten agents' own histories with built-in memory without writing to Misskey:
+Reconcile all twenty agents' own histories with built-in memory without writing to Misskey:
 
 ```powershell
 docker compose exec black-scheduler python /app/refresh_memories.py

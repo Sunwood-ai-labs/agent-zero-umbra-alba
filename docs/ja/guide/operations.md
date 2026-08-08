@@ -37,7 +37,7 @@ docker compose exec black-scheduler python /app/trigger_agent.py black-agent01
 
 ## 長期メモリの再同期
 
-SNSへ書き込まず、10人全員の自分史とbuilt-in memoryだけを再照合します。
+SNSへ書き込まず、20体全員の自分史とbuilt-in memoryだけを再照合します。
 
 ```powershell
 docker compose exec black-scheduler python /app/refresh_memories.py

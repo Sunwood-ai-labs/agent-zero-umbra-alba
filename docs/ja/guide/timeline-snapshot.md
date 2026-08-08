@@ -1,5 +1,7 @@
 # タイムライン・スナップショット
 
+これは以前の会話実験を保存した履歴です。現在の双月盆地の事実ではなく、現行の前提は[`twin-moon-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/seed/scenarios/twin-moon-basin.md)にあります。
+
 取得日時: 2026-07-26 12:49 JST
 
 対象: グローバルタイムライン直近100件

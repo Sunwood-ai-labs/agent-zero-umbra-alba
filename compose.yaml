@@ -149,7 +149,7 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: black
-      AGENT_INDICES: "1,3,5,7,9"
+      AGENT_INDICES: "1,3,5,7,9,11,13,15,17,19"
     command: ["python", "/app/bootstrap.py"]
     volumes:
       - ./bootstrap:/app:ro
@@ -211,7 +211,7 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: white
-      AGENT_INDICES: "2,4,6,8,10"
+      AGENT_INDICES: "2,4,6,8,10,12,14,16,18,20"
     command: ["python", "/app/bootstrap.py"]
     volumes:
       - ./bootstrap:/app:ro
@@ -225,11 +225,21 @@ services:
   black-agent03: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent03:/opt/data"], networks: [black-net]}
   black-agent04: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent04:/opt/data"], networks: [black-net]}
   black-agent05: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent05:/opt/data"], networks: [black-net]}
+  black-agent06: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent06:/opt/data"], networks: [black-net]}
+  black-agent07: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent07:/opt/data"], networks: [black-net]}
+  black-agent08: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent08:/opt/data"], networks: [black-net]}
+  black-agent09: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent09:/opt/data"], networks: [black-net]}
+  black-agent10: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent10:/opt/data"], networks: [black-net]}
   white-agent01: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent01:/opt/data"], networks: [white-net]}
   white-agent02: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent02:/opt/data"], networks: [white-net]}
   white-agent03: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent03:/opt/data"], networks: [white-net]}
   white-agent04: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent04:/opt/data"], networks: [white-net]}
   white-agent05: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent05:/opt/data"], networks: [white-net]}
+  white-agent06: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent06:/opt/data"], networks: [white-net]}
+  white-agent07: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent07:/opt/data"], networks: [white-net]}
+  white-agent08: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent08:/opt/data"], networks: [white-net]}
+  white-agent09: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent09:/opt/data"], networks: [white-net]}
+  white-agent10: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent10:/opt/data"], networks: [white-net]}
 
   black-scheduler:
     image: python:3.12-alpine
@@ -241,9 +251,14 @@ services:
       black-agent03: {condition: service_started}
       black-agent04: {condition: service_started}
       black-agent05: {condition: service_started}
+      black-agent06: {condition: service_started}
+      black-agent07: {condition: service_started}
+      black-agent08: {condition: service_started}
+      black-agent09: {condition: service_started}
+      black-agent10: {condition: service_started}
     environment:
       HERMES_API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
-      AGENTS: black-agent01,black-agent02,black-agent03,black-agent04,black-agent05
+      AGENTS: black-agent01,black-agent02,black-agent03,black-agent04,black-agent05,black-agent06,black-agent07,black-agent08,black-agent09,black-agent10
       FACTION: 黒猫
       RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-15}
       RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-90}
@@ -263,9 +278,14 @@ services:
       white-agent03: {condition: service_started}
       white-agent04: {condition: service_started}
       white-agent05: {condition: service_started}
+      white-agent06: {condition: service_started}
+      white-agent07: {condition: service_started}
+      white-agent08: {condition: service_started}
+      white-agent09: {condition: service_started}
+      white-agent10: {condition: service_started}
     environment:
       HERMES_API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
-      AGENTS: white-agent01,white-agent02,white-agent03,white-agent04,white-agent05
+      AGENTS: white-agent01,white-agent02,white-agent03,white-agent04,white-agent05,white-agent06,white-agent07,white-agent08,white-agent09,white-agent10
       FACTION: 白猫
       RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-15}
       RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-90}

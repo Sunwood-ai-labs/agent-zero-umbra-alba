@@ -116,8 +116,14 @@ try {
         if ($entries.Count -ne $instance.ExpectedAgents) {
             throw "$($instance.Name) scheduler tracks $($entries.Count) agents, expected $($instance.ExpectedAgents)."
         }
-        $intervals = @($entries | ForEach-Object { [int]$_.lastIntervalMinutes })
-        if (($intervals | Measure-Object -Minimum).Minimum -lt 15 -or ($intervals | Measure-Object -Maximum).Maximum -gt 90) {
+        # A fresh stack has not executed every agent yet, so null is expected
+        # until the first scheduled run records its interval.
+        $intervals = @(
+            $entries |
+                Where-Object { $null -ne $_.lastIntervalMinutes } |
+                ForEach-Object { [int]$_.lastIntervalMinutes }
+        )
+        if ($intervals.Count -gt 0 -and (($intervals | Measure-Object -Minimum).Minimum -lt 15 -or ($intervals | Measure-Object -Maximum).Maximum -gt 90)) {
             throw "$($instance.Name) scheduler interval is outside the configured 15-90 minute range."
         }
         "{0}: {1} agents scheduled" -f $instance.Name, $entries.Count

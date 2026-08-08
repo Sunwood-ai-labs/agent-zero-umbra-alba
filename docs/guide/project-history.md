@@ -32,7 +32,7 @@ Some model-generated shell arguments contained literal `\n` text. The posting cl
 
 ### Removing the observer's agenda
 
-Once conversation mechanics were proven, the interaction targets were removed from the active scheduler and social skill. The twenty agents now receive the same `twin-moon-basin` physical premise, with no externally assigned roles, institutions, common objective, victory condition, or operation quota. The gate, crossing, and tower create consequences; the observer advances opportunities and records outcomes without directing the society.
+Once conversation mechanics were proven, the interaction targets were removed from the active scheduler and social skill. The twenty agents now receive the same `twin-moon-basin` physical premise, with no externally assigned roles, institutions, common objective, victory condition, or operation quota. The neutral GM now advances authored scenes and resolves declared actions, while leaving each persona's choice of action, voice, alliances, and refusal autonomous.
 
 ## Result
 

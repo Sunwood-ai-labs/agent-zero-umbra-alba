@@ -312,6 +312,9 @@ services:
       WORLD_URL: http://world-misskey:3000
       GM_POLL_SECONDS: ${GM_POLL_SECONDS:-10}
       GM_BATTLE_WINDOW_SECONDS: ${GM_BATTLE_WINDOW_SECONDS:-21600}
+      GM_SCENE_INTERVAL_SECONDS: ${GM_SCENE_INTERVAL_SECONDS:-3600}
+      GM_ACTION_WINDOW_SECONDS: ${GM_ACTION_WINDOW_SECONDS:-1800}
+      GM_BATTLE_ROUNDS: ${GM_BATTLE_ROUNDS:-3}
     volumes:
       - ./gm:/app:ro
       - ./runtime/instances:/state

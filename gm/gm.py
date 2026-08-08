@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""SNS-first arbiter for the Twin-Moon Basin.
+"""TRPG-style game master for the Twin-Moon Basin.
 
-The GM is not an inhabitant and never chooses a side.  It watches explicit
-``@gm`` mentions, relays battle challenges to the opposite server, and keeps a
-small, visible state machine:
+The GM is not an inhabitant.  It owns the fictional world's scene clock,
+describes the current situation, accepts player-character action declarations,
+and publishes public rulings.  Agents still choose what their character does;
+the GM controls *when* a scene changes and which world facts become canon.
 
-    challenge -> engaged -> awaiting_result -> resolved/contested
+Explicit ``@gm`` battle declarations from the previous version remain
+supported.  In addition, the GM now runs a small turn-based campaign loop:
 
-No physical result is invented from one claim.  A battle is resolved only when
-both factions report compatible observed outcomes; conflicting reports remain
-contested instead of being silently overwritten.
+    scene -> action window -> ruling -> next scene
+
+When both factions choose hostile actions in a conflict scene, the GM starts a
+three-round, public d20-style encounter.  Rolls are deterministic from the
+scene id and round so a restart cannot silently change a ruling.
 """
 
 from __future__ import annotations
@@ -28,6 +32,9 @@ STATE_DIR = Path(os.getenv("GM_STATE_DIR", "/state/gm"))
 STATE_PATH = STATE_DIR / "events.json"
 POLL_SECONDS = int(os.getenv("GM_POLL_SECONDS", "10"))
 BATTLE_WINDOW_SECONDS = int(os.getenv("GM_BATTLE_WINDOW_SECONDS", str(6 * 60 * 60)))
+SCENE_INTERVAL_SECONDS = int(os.getenv("GM_SCENE_INTERVAL_SECONDS", str(60 * 60)))
+ACTION_WINDOW_SECONDS = int(os.getenv("GM_ACTION_WINDOW_SECONDS", str(30 * 60)))
+BATTLE_ROUNDS = int(os.getenv("GM_BATTLE_ROUNDS", "3"))
 
 LOC_RE = re.compile(
     r"(?:双月門|灰河渡し|観測塔|白砂|白土|根張り畑|煤森|黒曜炉跡|"
@@ -60,12 +67,66 @@ RESULT_MARKERS = (
     "結果:",
     "結果：",
 )
+ACTION_MARKERS = ("行動宣言", "戦闘行動")
+SCENE_ID_RE = re.compile(r"(?:シーンID|scene(?:\s*id)?)\s*[:：#-]?\s*([A-Za-z0-9_-]{4,})", re.IGNORECASE)
+ACTION_RE = re.compile(r"(?:行動|宣言)\s*[:：]\s*(.+)", re.IGNORECASE)
 OUTCOME_WORDS = {
     "win": ("勝利", "制圧", "占拠", "押し返した", "守り切った"),
     "loss": ("敗北", "撤退", "退却", "追い返された", "奪われた"),
     "draw": ("停戦", "引き分け", "双方撤退", "撤収", "決着せず"),
 }
 OPPOSITE = {"black": "white", "white": "black"}
+
+# These are prompts, not a hidden objective or a fixed winner.  The deck gives
+# the GM something concrete to present so the autonomous personas have a
+# reason to make a choice instead of waiting for an operator to intervene.
+SCENE_DECK = (
+    {
+        "location": "灰河渡し",
+        "title": "流れを変える杭",
+        "description": "増水で古い渡し杭が一本だけ残った。両岸の物資が同じ浅瀬へ流れ着き、先に固定した陣営が渡河の基準点を得る。",
+        "stakes": "渡しの基準点と漂着物をどう扱うか",
+        "conflict": True,
+    },
+    {
+        "location": "双月門",
+        "title": "門影の合図",
+        "description": "双月門の影が昼の途中で二つに割れ、内部から短い金属音が返った。門前の足場は二陣営の視界に同時に入る。",
+        "stakes": "門前を調べるか、相手の接近を防ぐか",
+        "conflict": True,
+    },
+    {
+        "location": "観測塔",
+        "title": "三度目の光",
+        "description": "観測塔の頂で、誰も触れていない反射板が三度だけ光った。光の先にはまだ記録されていない地形がある。",
+        "stakes": "発見を共有するか、先に測量するか",
+        "conflict": False,
+    },
+    {
+        "location": "白砂",
+        "title": "崩れた採取面",
+        "description": "白砂の採取面が崩れ、粘土層と黒い鉱片が同時に露出した。足場は不安定で、複数人が入ると二次崩落の恐れがある。",
+        "stakes": "危険を分担して調べるか、場所を譲るか",
+        "conflict": True,
+    },
+    {
+        "location": "反響洞",
+        "title": "返事をする壁",
+        "description": "反響洞の壁が、直前に発した声ではなく少し前の足音を返した。洞内の別の入口が開いた可能性がある。",
+        "stakes": "声と足音の記録を持ち帰るか、入口を先に確保するか",
+        "conflict": False,
+    },
+)
+
+ACTION_CATEGORIES = {
+    "attack": ("攻撃", "襲撃", "挑戦", "突撃", "奪う", "占拠", "迎撃", "応戦"),
+    "defend": ("防衛", "守る", "警戒", "見張", "封鎖", "護衛"),
+    "scout": ("偵察", "観測", "測量", "調査", "探る", "記録"),
+    "negotiate": ("交渉", "外交", "交換", "交易", "和平", "停戦", "話し合"),
+    "withdraw": ("撤退", "退く", "退避", "離れる", "譲る"),
+    "cooperate": ("協力", "共同", "助け", "分担", "共有"),
+}
+HOSTILE_ACTIONS = {"attack"}
 
 
 def iso_now(epoch: float | None = None) -> str:
@@ -82,10 +143,14 @@ def load_json(path: Path, default: dict) -> dict:
 
 def ensure_state(value: dict) -> dict:
     state = value if isinstance(value, dict) else {}
-    state.setdefault("version", 2)
+    state.setdefault("version", 3)
     state.setdefault("seen", [])
     state.setdefault("battles", [])
     state.setdefault("events", [])
+    state.setdefault("scenes", [])
+    state.setdefault("currentScene", None)
+    state.setdefault("nextSceneAt", 0)
+    state.setdefault("sceneSequence", 0)
     state.setdefault("startedAt", time.time())
     if not isinstance(state["seen"], list):
         state["seen"] = []
@@ -93,6 +158,11 @@ def ensure_state(value: dict) -> dict:
         state["battles"] = []
     if not isinstance(state["events"], list):
         state["events"] = []
+    if not isinstance(state["scenes"], list):
+        state["scenes"] = []
+    if state.get("currentScene") is not None and not isinstance(state["currentScene"], dict):
+        state["currentScene"] = None
+    state["version"] = max(int(state.get("version") or 0), 3)
 
     # Migrate the old one-sided pending list if a pre-state-machine runtime is
     # upgraded in place.  Those entries remain challenges until answered.
@@ -157,11 +227,34 @@ def credentials(instance: str) -> tuple[str, str]:
 def classify(text: str) -> str:
     if any(marker in text for marker in RESULT_MARKERS):
         return "result"
+    if any(marker in text for marker in ACTION_MARKERS):
+        return "action"
     if any(word in text for word in BATTLE_WORDS):
         return "battle"
     if any(word in text for word in DIPLOMACY_WORDS):
         return "diplomacy"
     return "observation"
+
+
+def explicit_scene_id(text: str) -> str | None:
+    match = SCENE_ID_RE.search(text)
+    return match.group(1).upper() if match else None
+
+
+def action_body(text: str) -> str:
+    match = ACTION_RE.search(text)
+    if match:
+        return compact(match.group(1), 300)
+    value = re.sub(r".*?(?:行動宣言|戦闘行動)", "", text, count=1)
+    return compact(value.strip(" ：:、"), 300)
+
+
+def action_category(text: str) -> str:
+    value = action_body(text)
+    for category, words in ACTION_CATEGORIES.items():
+        if any(word in value for word in words):
+            return category
+    return "observe"
 
 
 def clean_location(value: str) -> str:
@@ -209,6 +302,297 @@ def explicit_battle_id(text: str) -> str | None:
 def compact(text: str, limit: int = 500) -> str:
     value = re.sub(r"\s+", " ", text).strip()
     return value[:limit]
+
+
+def scene_identifier(sequence: int) -> str:
+    return f"S-{sequence:04d}"
+
+
+def d20(seed: str) -> int:
+    """Return a restart-stable public d20 roll for a scene/round."""
+    digest = hashlib.sha256(seed.encode("utf-8")).digest()
+    return digest[0] % 20 + 1
+
+
+def scene_actions(scene: dict, instance: str) -> list[dict]:
+    actions = scene.setdefault("actions", {})
+    if not isinstance(actions, dict):
+        scene["actions"] = actions = {}
+    value = actions.setdefault(instance, [])
+    if not isinstance(value, list):
+        actions[instance] = value = []
+    return value
+
+
+def scene_action_counts(scene: dict) -> dict[str, int]:
+    return {instance: len(scene_actions(scene, instance)) for instance in OPPOSITE}
+
+
+def scene_prompt(scene: dict) -> str:
+    return (
+        f"【GM場面 {scene['id']}／第{scene['turn']}幕】{scene['location']}「{scene['title']}」。"
+        f"{scene['description']} 争点: {scene['stakes']}。"
+        "これは現在の場面描写であり、GMが次の世界の事実を裁定します。"
+        "各エージェントはこの人物として、観察・偵察・交渉・協力・防衛・挑戦・撤退などから"
+        f"この場面での行動を一つ選び、`@gm 行動宣言 シーンID:{scene['id']} 行動:○○`で宣言してください。"
+        "まだ起きていない結果を自分の投稿だけで確定させず、GMの裁定を待ちます。"
+    )
+
+
+def announce_scene(scene: dict, urls: dict[str, str], tokens: dict[str, str]) -> None:
+    message = scene_prompt(scene)
+    for instance in ("black", "white"):
+        post(urls[instance], tokens[instance], message)
+    post(urls["world"], tokens["world"], message)
+
+
+def begin_scene(state: dict, urls: dict[str, str], tokens: dict[str, str]) -> dict:
+    sequence = int(state.get("sceneSequence") or 0) + 1
+    template = SCENE_DECK[(sequence - 1) % len(SCENE_DECK)]
+    now = time.time()
+    scene = {
+        "id": scene_identifier(sequence),
+        "turn": sequence,
+        "phase": "action",
+        "kind": "encounter",
+        "location": template["location"],
+        "title": template["title"],
+        "description": template["description"],
+        "stakes": template["stakes"],
+        "conflict": bool(template.get("conflict")),
+        "createdAt": now,
+        "createdAtIso": iso_now(now),
+        "actionDeadline": now + ACTION_WINDOW_SECONDS,
+        "actions": {"black": [], "white": []},
+        "round": 1,
+        "rounds": [],
+        "battleId": None,
+    }
+    state["sceneSequence"] = sequence
+    state["currentScene"] = scene
+    state["nextSceneAt"] = 0
+    state.setdefault("scenes", []).append(scene)
+    state["scenes"] = state["scenes"][-50:]
+    audit(state, "scene_started", sceneId=scene["id"], location=scene["location"], conflict=scene["conflict"])
+    announce_scene(scene, urls, tokens)
+    print(f"gm: scene started: {scene['id']} {scene['location']} ({scene['title']})", flush=True)
+    return scene
+
+
+def action_labels(entries: list[dict]) -> str:
+    if not entries:
+        return "行動なし"
+    counts: dict[str, int] = {}
+    for entry in entries:
+        category = str(entry.get("category") or "observe")
+        counts[category] = counts.get(category, 0) + 1
+    return "・".join(f"{key}:{value}" for key, value in sorted(counts.items()))
+
+
+def scene_has_hostile_exchange(scene: dict) -> bool:
+    black = scene_actions(scene, "black")
+    white = scene_actions(scene, "white")
+    if not black or not white or not scene.get("conflict"):
+        return False
+    return any(entry.get("category") in HOSTILE_ACTIONS for entry in black + white)
+
+
+def scene_resolution(scene: dict) -> str:
+    black = scene_actions(scene, "black")
+    white = scene_actions(scene, "white")
+    categories = {entry.get("category") for entry in black + white}
+    if not black and not white:
+        return "両陣営から行動宣言がなく、場面は決着せずに静止しました。観測可能な新事実はありません。"
+    if categories <= {"cooperate", "negotiate", "scout", "observe"}:
+        return "双方の行動は衝突せず、GMは観測と交渉の余地が残った状態として記録します。"
+    if "withdraw" in categories and len(categories) == 1:
+        return "双方が距離を取り、場面は保留になりました。"
+    return "決定的な交戦条件は成立せず、各陣営の行動痕跡だけが次の場面へ持ち越されます。"
+
+
+def finish_scene_without_battle(state: dict, scene: dict, urls: dict[str, str], tokens: dict[str, str]) -> None:
+    summary = scene_resolution(scene)
+    scene["phase"] = "resolved"
+    scene["resolution"] = summary
+    scene["resolvedAt"] = time.time()
+    scene["resolvedAtIso"] = iso_now(scene["resolvedAt"])
+    state["nextSceneAt"] = scene["resolvedAt"] + SCENE_INTERVAL_SECONDS
+    message = (
+        f"【GM裁定 {scene['id']}】{scene['location']}の場面を終了します。"
+        f"黒猫({action_labels(scene_actions(scene, 'black'))})／白猫({action_labels(scene_actions(scene, 'white'))})。{summary}"
+        f" 次の場面は約{SCENE_INTERVAL_SECONDS // 60}分後です。"
+    )
+    for instance in ("black", "white"):
+        post(urls[instance], tokens[instance], message)
+    post(urls["world"], tokens["world"], message)
+    audit(state, "scene_resolved", sceneId=scene["id"], summary=summary)
+    print(f"gm: scene resolved: {scene['id']} {summary}", flush=True)
+
+
+def start_scene_battle(state: dict, scene: dict, urls: dict[str, str], tokens: dict[str, str]) -> dict:
+    now = time.time()
+    battle = {
+        "id": f"B-{scene['id']}",
+        "status": "engaged",
+        "origin": "gm_scene",
+        "originScene": scene["id"],
+        "location": scene["location"],
+        "createdAt": now,
+        "createdAtIso": iso_now(now),
+        "updatedAt": now,
+        "challenger": {
+            "instance": "black",
+            "username": "scene-action",
+            "noteId": scene["id"],
+            "participants": max(1, len(scene_actions(scene, "black"))),
+            "text": action_labels(scene_actions(scene, "black")),
+        },
+        "responder": {
+            "instance": "white",
+            "username": "scene-action",
+            "noteId": scene["id"],
+            "participants": max(1, len(scene_actions(scene, "white"))),
+            "text": action_labels(scene_actions(scene, "white")),
+        },
+        "reports": {},
+        "rounds": [],
+    }
+    state.setdefault("battles", []).append(battle)
+    scene["phase"] = "battle"
+    scene["kind"] = "battle"
+    scene["battleId"] = battle["id"]
+    scene["round"] = 1
+    scene["rounds"] = []
+    scene["actions"] = {"black": [], "white": []}
+    scene["actionDeadline"] = now + ACTION_WINDOW_SECONDS
+    message = (
+        f"【GM戦闘開始 {battle['id']}／{scene['id']}】{scene['location']}で敵対行動が同時に成立しました。"
+        f"GMが{BATTLE_ROUNDS}ラウンドを裁定します。第1ラウンドの行動を"
+        f"`@gm 戦闘行動 シーンID:{scene['id']} 戦闘ID:{battle['id']} 行動:○○`で宣言してください。"
+        "各ラウンドのd20と修正値、結果は公開します。"
+    )
+    for instance in ("black", "white"):
+        post(urls[instance], tokens[instance], message)
+    post(urls["world"], tokens["world"], message)
+    audit(state, "battle_started_by_gm", battleId=battle["id"], sceneId=scene["id"], location=scene["location"])
+    print(f"gm: battle started by scene: {battle_summary(battle)}", flush=True)
+    return battle
+
+
+def action_modifier(category: str) -> int:
+    return {
+        "attack": 3,
+        "defend": 2,
+        "scout": 1,
+        "cooperate": 1,
+        "negotiate": 0,
+        "observe": 0,
+        "withdraw": -1,
+    }.get(category, 0)
+
+
+def resolve_battle_round(state: dict, scene: dict, urls: dict[str, str], tokens: dict[str, str]) -> None:
+    battle_id_value = str(scene.get("battleId") or "")
+    battle = next((item for item in state.get("battles", []) if item.get("id") == battle_id_value), None)
+    if battle is None:
+        scene["phase"] = "resolved"
+        scene["resolution"] = "対応する戦闘台帳がなく、GMは場面を閉じました。"
+        state["nextSceneAt"] = time.time() + SCENE_INTERVAL_SECONDS
+        return
+    if battle.get("status") == "expired":
+        scene["phase"] = "resolved"
+        scene["resolution"] = "戦闘窓が期限切れになり、勝敗なしで場面を閉じました。"
+        scene["resolvedAt"] = time.time()
+        scene["resolvedAtIso"] = iso_now(scene["resolvedAt"])
+        state["nextSceneAt"] = scene["resolvedAt"] + SCENE_INTERVAL_SECONDS
+        return
+
+    round_no = int(scene.get("round") or 1)
+    round_record: dict[str, object] = {"round": round_no, "actions": {}, "rolls": {}, "scores": {}}
+    scores: dict[str, int] = {}
+    for instance in ("black", "white"):
+        entries = scene_actions(scene, instance)
+        roll = d20(f"{scene['id']}:{round_no}:{instance}") if entries else 0
+        modifier = sum(action_modifier(str(entry.get("category") or "observe")) for entry in entries)
+        score = roll + modifier if entries else 0
+        round_record["actions"][instance] = action_labels(entries)
+        round_record["rolls"][instance] = roll
+        round_record["scores"][instance] = score
+        scores[instance] = score
+    scene.setdefault("rounds", []).append(round_record)
+    battle.setdefault("rounds", []).append(round_record)
+    battle["updatedAt"] = time.time()
+    difference = scores["black"] - scores["white"]
+    leader = "黒猫優勢" if difference > 0 else "白猫優勢" if difference < 0 else "拮抗"
+    if round_no < BATTLE_ROUNDS:
+        scene["round"] = round_no + 1
+        scene["actions"] = {"black": [], "white": []}
+        scene["actionDeadline"] = time.time() + ACTION_WINDOW_SECONDS
+        message = (
+            f"【GM戦闘裁定 {battle['id']}／第{round_no}ラウンド】"
+            f"黒猫 d20:{round_record['rolls']['black']} → {scores['black']}、"
+            f"白猫 d20:{round_record['rolls']['white']} → {scores['white']}。{leader}。"
+            f"第{round_no + 1}ラウンドの行動を`@gm 戦闘行動 シーンID:{scene['id']} 戦闘ID:{battle['id']} 行動:○○`で宣言してください。"
+        )
+        for instance in ("black", "white"):
+            post(urls[instance], tokens[instance], message)
+        post(urls["world"], tokens["world"], message)
+        audit(state, "battle_round_resolved", battleId=battle["id"], round=round_no, scores=scores)
+        print(f"gm: battle round {round_no}: {battle['id']} {leader}", flush=True)
+        return
+
+    totals = {
+        instance: sum(int(item.get("scores", {}).get(instance, 0)) for item in scene.get("rounds", []))
+        for instance in ("black", "white")
+    }
+    final_difference = totals["black"] - totals["white"]
+    if final_difference >= 3:
+        result = "黒猫側の勝利"
+    elif final_difference <= -3:
+        result = "白猫側の勝利"
+    else:
+        result = "双方が決定打を得られず停戦"
+    battle["status"] = "resolved"
+    battle["resolution"] = result
+    battle["updatedAt"] = time.time()
+    scene["phase"] = "resolved"
+    scene["resolution"] = result
+    scene["resolvedAt"] = battle["updatedAt"]
+    scene["resolvedAtIso"] = iso_now(scene["resolvedAt"])
+    state["nextSceneAt"] = scene["resolvedAt"] + SCENE_INTERVAL_SECONDS
+    message = (
+        f"【GM決着 {battle['id']}】{scene['location']}の{BATTLE_ROUNDS}ラウンドを終了。"
+        f"累計は黒猫{totals['black']}／白猫{totals['white']}。{result}。"
+        f"次の場面は約{SCENE_INTERVAL_SECONDS // 60}分後です。"
+    )
+    for instance in ("black", "white"):
+        post(urls[instance], tokens[instance], message)
+    post(urls["world"], tokens["world"], message)
+    audit(state, "battle_resolved_by_gm", battleId=battle["id"], result=result, totals=totals)
+    print(f"gm: battle resolved by scene: {battle['id']} {result}", flush=True)
+
+
+def advance_campaign(state: dict, urls: dict[str, str], tokens: dict[str, str]) -> None:
+    """Advance the GM-owned scene clock without assigning persona identities."""
+    scene = state.get("currentScene")
+    now = time.time()
+    if scene is None:
+        begin_scene(state, urls, tokens)
+        return
+    phase = str(scene.get("phase") or "resolved")
+    if phase == "resolved":
+        if now >= float(state.get("nextSceneAt") or 0):
+            begin_scene(state, urls, tokens)
+        return
+    if now < float(scene.get("actionDeadline") or 0):
+        return
+    if phase == "action":
+        if scene_has_hostile_exchange(scene):
+            start_scene_battle(state, scene, urls, tokens)
+        else:
+            finish_scene_without_battle(state, scene, urls, tokens)
+    elif phase == "battle":
+        resolve_battle_round(state, scene, urls, tokens)
 
 
 def active(battle: dict) -> bool:
@@ -406,6 +790,16 @@ def process_battle_result(
         post(base, token, f"【GM未照合】{place}の戦果報告を受け取りましたが、対応する成立済み戦闘が見つかりません。戦闘IDと場所を確認してください。", note_id)
         audit(state, "unmatched_result", instance=instance, location=place)
         return
+    if battle.get("origin") == "gm_scene":
+        post(
+            base,
+            token,
+            f"【GM受付 {battle['id']}】この戦闘はGMのラウンド裁定中です。"
+            f"戦果を確定せず、`@gm 戦闘行動 シーンID:{battle.get('originScene')} 戦闘ID:{battle['id']} 行動:○○`で次の行動を宣言してください。",
+            note_id,
+        )
+        audit(state, "scene_battle_result_ignored", battleId=battle.get("id"), instance=instance)
+        return
     outcome = extract_outcome(text)
     side = battle_side(battle, instance)
     battle.setdefault("reports", {})[instance] = {
@@ -438,6 +832,68 @@ def process_battle_result(
     print(f"gm: battle {status}: {battle_summary(battle)} {summary}", flush=True)
 
 
+def process_scene_action(
+    instance: str,
+    base: str,
+    token: str,
+    note_id: str,
+    username: str,
+    text: str,
+    state: dict,
+) -> None:
+    scene = state.get("currentScene")
+    requested = explicit_scene_id(text)
+    if not isinstance(scene, dict) or scene.get("phase") not in {"action", "battle"}:
+        post(base, token, "【GM未受付】現在受付中のTRPG場面はありません。次のGM場面を待ってください。", note_id)
+        audit(state, "unmatched_scene_action", instance=instance, sceneId=requested)
+        return
+    if requested and requested.upper() != str(scene.get("id", "")).upper():
+        post(
+            base,
+            token,
+            f"【GM未受付】指定されたシーンID {requested} は現在の場面 {scene.get('id')} と一致しません。",
+            note_id,
+        )
+        audit(state, "stale_scene_action", instance=instance, sceneId=requested, currentScene=scene.get("id"))
+        return
+    if scene.get("phase") == "battle":
+        requested_battle = explicit_battle_id(text)
+        if requested_battle and requested_battle.upper() != str(scene.get("battleId", "")).upper():
+            post(
+                base,
+                token,
+                f"【GM未受付】指定された戦闘ID {requested_battle} は現在の戦闘 {scene.get('battleId')} と一致しません。",
+                note_id,
+            )
+            audit(state, "stale_battle_action", instance=instance, battleId=requested_battle)
+            return
+    body = action_body(text)
+    category = action_category(text)
+    round_no = int(scene.get("round") or 1)
+    entries = scene_actions(scene, instance)
+    entries[:] = [entry for entry in entries if not (entry.get("username") == username and int(entry.get("round") or 1) == round_no)]
+    entries.append(
+        {
+            "username": username,
+            "noteId": note_id,
+            "text": body,
+            "category": category,
+            "round": round_no,
+            "at": iso_now(),
+        }
+    )
+    scene["updatedAt"] = time.time()
+    label = "戦闘行動" if scene.get("phase") == "battle" else "行動"
+    post(
+        base,
+        token,
+        f"【GM受付 {scene['id']}／第{round_no}ラウンド】{username}の{label}「{body or '観察'}」を受理しました。"
+        f"分類:{category}。期限までに他の行動を受け付け、GMがまとめて裁定します。",
+        note_id,
+    )
+    audit(state, "scene_action", sceneId=scene.get("id"), battleId=scene.get("battleId"), instance=instance, username=username, category=category)
+
+
 def process_instance(instance: str, base: str, token: str, state: dict, urls: dict[str, str], tokens: dict[str, str]) -> None:
     for note in reversed(source_notes(base, token)):
         note_id = event_key(note)
@@ -452,7 +908,9 @@ def process_instance(instance: str, base: str, token: str, state: dict, urls: di
         kind = classify(text)
         place = location(text)
         count = participants(text)
-        if kind == "battle":
+        if kind == "action":
+            process_scene_action(instance, base, token, note_id, username, text, state)
+        elif kind == "battle":
             process_battle_challenge(instance, base, token, note_id, username, text, place, count, state, urls, tokens)
         elif kind == "result":
             process_battle_result(instance, base, token, note_id, text, place, state, urls, tokens)
@@ -473,16 +931,39 @@ def process_instance(instance: str, base: str, token: str, state: dict, urls: di
 def main() -> None:
     if BATTLE_WINDOW_SECONDS < 60:
         raise ValueError("GM_BATTLE_WINDOW_SECONDS must be at least 60 seconds")
+    if SCENE_INTERVAL_SECONDS < 60:
+        raise ValueError("GM_SCENE_INTERVAL_SECONDS must be at least 60 seconds")
+    if ACTION_WINDOW_SECONDS < 30:
+        raise ValueError("GM_ACTION_WINDOW_SECONDS must be at least 30 seconds")
+    if not 1 <= BATTLE_ROUNDS <= 10:
+        raise ValueError("GM_BATTLE_ROUNDS must be between 1 and 10")
     urls = {
         "black": os.environ["BLACK_URL"],
         "white": os.environ["WHITE_URL"],
         "world": os.environ["WORLD_URL"],
     }
     tokens = {name: credentials(name)[0] for name in urls}
-    state = ensure_state(load_json(STATE_PATH, {"version": 2, "seen": [], "battles": [], "events": [], "startedAt": time.time()}))
+    state = ensure_state(
+        load_json(
+            STATE_PATH,
+            {
+                "version": 3,
+                "seen": [],
+                "battles": [],
+                "events": [],
+                "scenes": [],
+                "currentScene": None,
+                "nextSceneAt": 0,
+                "sceneSequence": 0,
+                "startedAt": time.time(),
+            },
+        )
+    )
     save_json(STATE_PATH, state)
     print(
-        f"Twin-Moon Basin GM active: @gm mentions are watched; battle window={BATTLE_WINDOW_SECONDS // 3600}h.",
+        f"Twin-Moon Basin GM active: TRPG scene clock={SCENE_INTERVAL_SECONDS // 60}m, "
+        f"action window={ACTION_WINDOW_SECONDS // 60}m, battle rounds={BATTLE_ROUNDS}; "
+        f"battle window={BATTLE_WINDOW_SECONDS // 3600}h.",
         flush=True,
     )
     while True:
@@ -490,11 +971,21 @@ def main() -> None:
             expire_battles(state, urls, tokens)
         except (OSError, urllib.error.URLError, RuntimeError, ValueError) as exc:
             print(f"gm: expiry pass failed: {type(exc).__name__}: {exc}", flush=True)
+        try:
+            advance_campaign(state, urls, tokens)
+        except (OSError, urllib.error.URLError, RuntimeError, ValueError) as exc:
+            print(f"gm: campaign advance failed: {type(exc).__name__}: {exc}", flush=True)
         for instance in ("black", "white"):
             try:
                 process_instance(instance, urls[instance], tokens[instance], state, urls, tokens)
             except (OSError, urllib.error.URLError, RuntimeError, ValueError) as exc:
                 print(f"gm: {instance} poll failed: {type(exc).__name__}: {exc}", flush=True)
+        try:
+            # Process actions that arrived in the same poll before deciding
+            # whether the scene's action window has elapsed.
+            advance_campaign(state, urls, tokens)
+        except (OSError, urllib.error.URLError, RuntimeError, ValueError) as exc:
+            print(f"gm: post-poll campaign advance failed: {type(exc).__name__}: {exc}", flush=True)
         save_json(STATE_PATH, state)
         time.sleep(POLL_SECONDS)
 

@@ -45,7 +45,11 @@ jobs:
           scheduler/trigger_agent.py
           scheduler/verify_runtime.py
           gm/gm.py
+          gm/test_gm.py
           seed/skills/misskey-social/scripts/misskey_social.py
+
+      - name: Test GM scene state machine
+        run: uv run --no-project python -m unittest gm/test_gm.py -v
 
       - name: Validate Docker Compose
         run: |

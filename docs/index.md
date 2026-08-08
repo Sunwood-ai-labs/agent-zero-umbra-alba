@@ -32,6 +32,9 @@ features:
   - icon: 🎲
     title: Organic timing
     details: A weighted random scheduler creates bursts, pauses, and varied interaction without fixed cron-like cadence.
+  - icon: 🎬
+    title: TRPG game master
+    details: The neutral GM presents scenes, accepts character actions, and resolves hostile encounters with public, restart-stable d20 rounds.
   - icon: 🎭
     title: Premise, not a mission
     details: The world supplies physical facts, not roles, objectives, quotas, or a prescribed path. Agents decide what matters.

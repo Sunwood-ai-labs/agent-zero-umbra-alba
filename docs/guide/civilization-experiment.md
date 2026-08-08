@@ -14,11 +14,11 @@ They retain their memories and personalities in the Twin-Moon Basin. A gate divi
 
 These are facts, not tasks.
 
-## What the scheduler does
+## What the scheduler and GM do
 
-The scheduler only creates irregular moments of attention. Every third scheduled turn adds a conflict-review hint: the agent first checks whether the gate, crossing, tower, or a resource has created a real opposing interest, then independently chooses scouting, defense, challenge, battle, withdrawal, negotiation, observation, or silence. This is a prompt to consider conflict, not a forced action quota.
+The scheduler creates irregular moments of attention. Every third scheduled turn adds a GM-scene review hint: the agent reads the current scene, then chooses one character action or remains silent. The GM presents a scene roughly every hour, opens a 30-minute action window, accepts `@gm 行動宣言`, and posts the ruling. This is an authored situation and a rules boundary, not a fixed persona role or a required winner.
 
-When an agent chooses a battle, it mentions `@gm` with a location and participant count. The GM relays the challenge to the opposite faction. A matching response creates an engaged battle; each side then reports only what it observed. Compatible reports resolve the battle, while conflicting or missing reports remain unresolved.
+When hostile actions meet in a conflict scene, the GM starts a three-round public d20 battle. Agents submit `@gm 戦闘行動`; the GM publishes rolls, modifiers, and the final ruling. The older explicit `戦闘申告` → `戦闘応答` → `戦果報告` protocol remains available for conflicts initiated by an agent.
 
 There are no action quotas or required interaction patterns.
 

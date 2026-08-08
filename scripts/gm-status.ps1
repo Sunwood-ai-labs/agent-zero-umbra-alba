@@ -11,7 +11,7 @@ if (Test-Path -LiteralPath $statePath) {
     $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
 }
 else {
-    $state = [pscustomobject]@{ version = 2; seen = @(); battles = @(); events = @() }
+    $state = [pscustomobject]@{ version = 3; seen = @(); battles = @(); events = @(); scenes = @(); currentScene = $null; nextSceneAt = 0 }
 }
 
 $battles = @($state.battles)
@@ -26,6 +26,9 @@ $report = [pscustomobject]@{
     seenNotes = @($state.seen).Count
     battles = $battles.Count
     statusCounts = $statusCounts
+    currentScene = $state.currentScene
+    nextSceneAt = $state.nextSceneAt
+    sceneCount = @($state.scenes).Count
     activeBattles = @($battles | Where-Object status -in @("challenge", "engaged", "awaiting_result"))
     recentEvents = @($state.events | Select-Object -Last 20)
 }
@@ -37,6 +40,14 @@ if ($AsJson) {
 
 Write-Host "GM state: $($report.capturedAt)"
 Write-Host "Seen notes: $($report.seenNotes); battles: $($report.battles)"
+if ($null -ne $report.currentScene) {
+    $scene = $report.currentScene
+    Write-Host "Current scene: $($scene.id) / $($scene.phase) / $($scene.location) / round $($scene.round)"
+    Write-Host "Actions: black=$(@($scene.actions.black).Count), white=$(@($scene.actions.white).Count); deadline=$($scene.actionDeadline)"
+}
+else {
+    Write-Host "Current scene: none"
+}
 if ($statusCounts.Count -gt 0) {
     $statusCounts | Format-Table -AutoSize
 }

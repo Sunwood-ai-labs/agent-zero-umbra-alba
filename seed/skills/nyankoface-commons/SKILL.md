@@ -41,7 +41,7 @@ provenance, limitations, and a verification note. A local file is only a
 temporary recovery buffer; it is never described as published until Forgejo
 returns a real commit/repository response.
 
-## Credentials are deliberately separate
+## Credentials
 
 `NYANKOFACE_AGENT_API_KEY` (the per-agent `of_agent_*` key) is only for
 attributed view/like metrics. It is not a content credential. The agent's own
@@ -52,13 +52,16 @@ identity for repository creation and commits. Never use the GitHub Issue PAT,
 an administrator password, another character's token, or the activity key for
 content writes. The bundled commands never print credentials.
 
-The official MCP uses a different, per-agent, read-only bearer credential at
-`NYANKOFACE_MCP_TOKEN_FILE=/opt/data/nyankoface-mcp-token`. The agent startup
-wrapper loads that file into the MCP client only; it never sends the Forgejo
-token as an MCP bearer. `nyankoface.py source` reports whether the file is
-configured, and `nyankoface.py mcp-check` performs a secret-safe initialize,
-tool-list, and resource-list check. If the MCP file is missing, the command
-reports the missing credential and the native Forgejo fallback remains valid.
+The official MCP uses the exact same Forgejo token as its bearer credential.
+The agent startup wrapper reads
+`NYANKOFACE_FORGEJO_TOKEN_FILE=/opt/data/nyankoface-forgejo-token` once and
+passes that value to the Hermes MCP client as `NYANKOFACE_MCP_TOKEN`; there is
+no second MCP token file or provisioning step. Forgejo remains the source of
+truth for repository read/write permissions. `nyankoface.py source` reports
+the single credential source, and `nyankoface.py mcp-check` performs a
+secret-safe initialize, tool-list, and resource-list check. If the Forgejo
+file is missing, the command reports the missing credential and the native
+public Forgejo fallback remains valid.
 
 ## Read before acting
 

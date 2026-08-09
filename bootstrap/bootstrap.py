@@ -41,9 +41,6 @@ NYANKOFACE_MCP_URL = os.getenv(
 NYANKOFACE_FORGEJO_TOKEN_FILE = os.getenv(
     "NYANKOFACE_FORGEJO_TOKEN_FILE", "/opt/data/nyankoface-forgejo-token"
 ).strip()
-NYANKOFACE_MCP_TOKEN_FILE = os.getenv(
-    "NYANKOFACE_MCP_TOKEN_FILE", "/opt/data/nyankoface-mcp-token"
-).strip()
 NYANKOFACE_GITHUB_REPO = os.getenv(
     "NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFace"
 ).strip()
@@ -487,30 +484,6 @@ def existing_forgejo_token(agent_dir: Path) -> str | None:
     return None
 
 
-def mcp_token_path(agent_dir: Path) -> Path:
-    """Map the container MCP token path to the corresponding agent home path."""
-    configured = Path(NYANKOFACE_MCP_TOKEN_FILE)
-    container_root = Path("/opt/data")
-    if configured.is_absolute():
-        try:
-            relative = configured.relative_to(container_root)
-        except ValueError:
-            relative = Path(configured.name)
-    else:
-        relative = configured
-    return agent_dir / relative
-
-
-def existing_mcp_token(agent_dir: Path) -> str | None:
-    """Preserve a provisioned per-agent MCP token without logging it."""
-    token_path = mcp_token_path(agent_dir)
-    try:
-        value = token_path.read_text(encoding="utf-8").strip()
-    except OSError:
-        value = ""
-    return value or None
-
-
 def create_agent(admin_token: str, username: str, agent_dir: Path) -> tuple[str, str, str]:
     token = existing_agent_token(agent_dir)
     credentials_path = agent_dir / "account.json"
@@ -647,7 +620,6 @@ def write_profile(
     )
     nyankoface_key = existing_nyankoface_key(agent_dir)
     forgejo_token = existing_forgejo_token(agent_dir)
-    mcp_token = existing_mcp_token(agent_dir)
     forgejo_user = f"{FACTION}-{username}"
     env_lines = [
         f"LITELLM_MASTER_KEY={LITELLM_KEY}",
@@ -660,7 +632,6 @@ def write_profile(
         f"NYANKOFACE_MCP_URL={NYANKOFACE_MCP_URL}",
         f"NYANKOFACE_FORGEJO_USER={forgejo_user}",
         f"NYANKOFACE_FORGEJO_TOKEN_FILE={NYANKOFACE_FORGEJO_TOKEN_FILE}",
-        f"NYANKOFACE_MCP_TOKEN_FILE={NYANKOFACE_MCP_TOKEN_FILE}",
         f"NYANKOFACE_GITHUB_REPO={NYANKOFACE_GITHUB_REPO}",
         f"NYANKOFACE_GITHUB_URL={NYANKOFACE_GITHUB_URL}",
         f"NYANKOFACE_AGENT_SLUG={FACTION}-{username}",
@@ -682,10 +653,6 @@ def write_profile(
         token_path = forgejo_token_path(agent_dir)
         token_path.parent.mkdir(parents=True, exist_ok=True)
         token_path.write_text(forgejo_token + "\n", encoding="utf-8")
-    if mcp_token:
-        token_path = mcp_token_path(agent_dir)
-        token_path.parent.mkdir(parents=True, exist_ok=True)
-        token_path.write_text(mcp_token + "\n", encoding="utf-8")
     (agent_dir / "config.yaml").write_text(
         "\n".join(
             [

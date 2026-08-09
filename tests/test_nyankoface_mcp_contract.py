@@ -20,29 +20,32 @@ def load_client():
     return module
 
 
-def test_source_reports_dedicated_mcp_file_without_secret(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_source_reports_the_shared_forgejo_file_without_secret(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     client = load_client()
-    token = "mcp-secret-that-must-not-be-printed"
-    token_file = tmp_path / "nyankoface-mcp-token"
+    token = "forgejo-secret-that-must-not-be-printed"
+    token_file = tmp_path / "nyankoface-forgejo-token"
     token_file.write_text(token + "\n", encoding="utf-8")
-    client.MCP_TOKEN_FILE = str(token_file)
+    client.FORGEJO_TOKEN = ""
+    client.FORGEJO_TOKEN_FILE = str(token_file)
     client.MCP_URL = "https://nyankoface.example/mcp"
 
     client.source(Namespace())
 
     output = capsys.readouterr().out
     payload = json.loads(output)
-    assert payload["mcp_client_token_configured"] is True
-    assert payload["mcp_token_file"] == str(token_file)
+    assert payload["forgejo_token_configured"] is True
+    assert payload["forgejo_token_file"] == str(token_file)
+    assert payload["mcp_credential_source"] == "NYANKOFACE_FORGEJO_TOKEN_FILE"
     assert token not in output
 
 
 def test_mcp_check_runs_initialize_and_read_lists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     client = load_client()
-    token = "mcp-secret-that-must-not-be-printed"
-    token_file = tmp_path / "nyankoface-mcp-token"
+    token = "forgejo-secret-that-must-not-be-printed"
+    token_file = tmp_path / "nyankoface-forgejo-token"
     token_file.write_text(token + "\n", encoding="utf-8")
-    client.MCP_TOKEN_FILE = str(token_file)
+    client.FORGEJO_TOKEN = ""
+    client.FORGEJO_TOKEN_FILE = str(token_file)
     client.MCP_URL = "https://nyankoface.example/mcp"
     calls: list[tuple[str, str, int | None]] = []
 
@@ -65,6 +68,8 @@ def test_mcp_check_runs_initialize_and_read_lists(tmp_path: Path, monkeypatch: p
     output = capsys.readouterr().out
     payload = json.loads(output)
     assert payload["ok"] is True
+    assert payload["forgejo_token_file"] == str(token_file)
+    assert payload["mcp_credential_source"] == "NYANKOFACE_FORGEJO_TOKEN_FILE"
     assert payload["initialize"]["status"] == 200
     assert payload["tools_list"]["count"] == 1
     assert payload["resources_list"]["count"] == 1
@@ -79,7 +84,8 @@ def test_mcp_check_runs_initialize_and_read_lists(tmp_path: Path, monkeypatch: p
 
 def test_mcp_check_reports_missing_token_without_faking_health(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     client = load_client()
-    client.MCP_TOKEN_FILE = str(tmp_path / "missing-token")
+    client.FORGEJO_TOKEN = ""
+    client.FORGEJO_TOKEN_FILE = str(tmp_path / "missing-token")
     client.MCP_URL = "https://nyankoface.example/mcp"
 
     with pytest.raises(SystemExit) as error:
@@ -88,14 +94,14 @@ def test_mcp_check_reports_missing_token_without_faking_health(tmp_path: Path, c
     assert error.value.code == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is False
-    assert payload["mcp_client_token_configured"] is False
-    assert "fallback" in payload["error"]
+    assert payload["forgejo_token_configured"] is False
+    assert "public fallback" in payload["error"]
 
 
-def test_compose_loads_mcp_token_from_a_separate_file() -> None:
+def test_compose_uses_the_forgejo_token_for_mcp() -> None:
     compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
-    assert "NYANKOFACE_MCP_TOKEN_FILE: /opt/data/nyankoface-mcp-token" in compose
-    assert "NYANKOFACE_MCP_TOKEN=\"$$(cat" in compose
+    assert "NYANKOFACE_MCP_TOKEN_FILE" not in compose
+    assert "NYANKOFACE_MCP_TOKEN=\"$$(cat \"$$NYANKOFACE_FORGEJO_TOKEN_FILE\")\"" in compose
     assert "exec /opt/hermes/bin/hermes gateway run" in compose
-    assert "Forgejo fallback remains available" in compose
+    assert "Forgejo token loaded for Forgejo and MCP" in compose
     assert "NYANKOFACE_FORGEJO_TOKEN_FILE" in compose

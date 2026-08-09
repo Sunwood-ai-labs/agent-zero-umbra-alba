@@ -14,6 +14,7 @@ $agentInstances = @($instances | Where-Object ExpectedAgents -gt 0)
 
 $premisePath = Join-Path $projectRoot "seed\scenarios\twin-moon-basin.md"
 $premiseText = ((Get-Content -Raw -LiteralPath $premisePath) -replace "`r`n", "`n" -replace "`r", "`n").Trim()
+$competitionHeading = "## 競争ゲームの地平"
 $sha256 = [System.Security.Cryptography.SHA256]::Create()
 
 try {
@@ -90,6 +91,11 @@ try {
             if ($worldText -ne $fullPremise) {
                 throw "Faction-scoped world premise differs for $service."
             }
+            $soulPath = Join-Path $agentRoot "SOUL.md"
+            $soulText = Get-Content -Raw -LiteralPath $soulPath
+            if ($soulText -notmatch [regex]::Escape($competitionHeading) -or $soulText -notmatch '競争提案') {
+                throw "Autonomous competition guidance is missing for $service."
+            }
             $configPath = Join-Path $agentRoot "config.yaml"
             $configText = Get-Content -Raw -LiteralPath $configPath
             if (
@@ -140,7 +146,24 @@ try {
         "{0}: {1} agents scheduled" -f $instance.Name, $entries.Count
     }
 
-    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
+    $gmStatePath = Join-Path $projectRoot "runtime\instances\gm\events.json"
+    if (-not (Test-Path -LiteralPath $gmStatePath)) {
+        throw "GM state is missing: $gmStatePath"
+    }
+    $gmState = Get-Content -Raw -LiteralPath $gmStatePath | ConvertFrom-Json
+    if ($gmState.competition.objective -ne "相手陣営を上回る文明を築く") {
+        throw "GM competition objective is missing from runtime state."
+    }
+    $competitionAxes = @("military", "territory", "resources", "technology", "knowledge", "cohesion", "influence")
+    foreach ($side in @("black", "white")) {
+        foreach ($axis in $competitionAxes) {
+            if ($null -eq $gmState.competition.score.$side.$axis) {
+                throw "GM competition score axis '$axis' is missing for $side."
+            }
+        }
+    }
+
+    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise, autonomous competition guidance and evidence board, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
     $scheduleSummary | ForEach-Object { Write-Host $_ }
 }
 finally {

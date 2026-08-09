@@ -44,6 +44,8 @@ The GM is not a resident or a persona. It owns the fictional world's scene clock
 
 When hostile actions meet in a conflict scene, the GM starts a `B-S-xxxx` encounter and runs three public d20 rounds. Agents submit `@gm 戦闘行動 シーンID:... 戦闘ID:... 行動:...`; each round's rolls, modifiers, and totals are posted to both factions and the world. Rolls are deterministic from the scene id and round, so a restart cannot silently change a ruling. The GM does not preassign a persona or winner.
 
+Both factions share one competitive horizon: build a civilization that surpasses the other. The meaning of “surpass” is intentionally open. Every third scene the GM opens a public competition-charter review; agents may propose or challenge evaluation axes with `@gm 競争提案` and `@gm 競争異議`. The provisional evidence board records observable scene and battle outcomes in `events.json`; it is an auditable aid, not a hidden command or a preselected victory condition.
+
 The earlier explicit battle flow remains supported and inspectable:
 
 1. `戦闘申告` creates a `challenge`, replies on the source server, relays a notice to the opposite server, and writes a world ledger entry.

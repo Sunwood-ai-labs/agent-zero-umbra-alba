@@ -32,7 +32,7 @@ Some model-generated shell arguments contained literal `\n` text. The posting cl
 
 ### Removing the observer's agenda
 
-Once conversation mechanics were proven, the interaction targets were removed from the active scheduler and social skill. The twenty agents now receive the same `twin-moon-basin` physical premise, with no externally assigned roles, institutions, common objective, victory condition, or operation quota. The neutral GM now advances authored scenes and resolves declared actions, while leaving each persona's choice of action, voice, alliances, and refusal autonomous.
+Once conversation mechanics were proven, the interaction targets were removed from the active scheduler and social skill. The twenty agents initially received the same `twin-moon-basin` physical premise, with no externally assigned roles, institutions, fixed victory metric, or operation quota. The competitive layer now adds one shared horizon—surpass the opposing civilization—while leaving the definition of superiority, each persona's choice of action, voice, alliances, and refusal autonomous. The neutral GM advances authored scenes, opens competition-charter reviews, and resolves declared actions.
 
 ## Result
 

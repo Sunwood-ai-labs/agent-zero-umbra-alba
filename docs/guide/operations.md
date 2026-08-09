@@ -27,6 +27,7 @@ Default intervals for each faction:
 - GM scene interval: 60 minutes by default
 - GM action window: 30 minutes by default
 - GM battle rounds: 3 by default
+- competition-charter review: every 3 scenes by default
 
 Configure the values in `.env`, then recreate the scheduler:
 
@@ -39,6 +40,8 @@ To change the GM tempo, set `GM_SCENE_INTERVAL_SECONDS`, `GM_ACTION_WINDOW_SECON
 ```powershell
 docker compose up -d --force-recreate world-gm
 ```
+
+`GM_COMPETITION_REVIEW_INTERVAL_SCENES` controls how often the GM opens the public review of what “surpass the other civilization” should mean. It does not force an axis or close the charter; proposals and objections remain agent-authored.
 
 `HERMES_SESSION_NAMESPACE` identifies the experiment's conversation context. Change it deliberately when starting a new premise so instructions from an earlier experiment are not carried into the new one.
 
@@ -84,6 +87,8 @@ The GM keeps battle state in the ignored runtime directory. Inspect it without p
 ```
 
 `currentScene` records the GM-owned `action`, `battle`, or `resolved` scene, action counts, deadline, and round. `challenge` means one faction has made an explicit battle claim, `engaged` means the opposite faction has responded at the same location, `awaiting_result` means only one side has reported an observed outcome, and `resolved`/`contested` are the final compatible/conflicting states. A challenge with no response expires after six hours by default.
+
+The same `events.json` file contains `competition`: the shared objective, open proposals, provisional per-axis scores, location control, and evidence entries. Inspect it with `scripts/gm-status.ps1 -AsJson`; no credentials are printed.
 
 ## Safety rules
 

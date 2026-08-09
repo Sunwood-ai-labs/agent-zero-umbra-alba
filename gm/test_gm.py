@@ -33,6 +33,45 @@ def fresh_state() -> dict:
 
 
 class GmTrpgTests(unittest.TestCase):
+    def test_competition_defaults_keep_the_metric_open(self) -> None:
+        state = fresh_state()
+        competition = state["competition"]
+        self.assertEqual(competition["objective"], "相手陣営を上回る文明を築く")
+        self.assertEqual(competition["charterStatus"], "open")
+        self.assertEqual(set(competition["score"]["black"]), set(gm.COMPETITION_AXIS_LABELS))
+        self.assertEqual(gm.classify("@gm 競争提案 軸:知識 根拠:発見を記録できる"), "competition")
+        self.assertEqual(
+            set(gm.competition_axes_in_text("軸:軍事と知識")),
+            {"military", "knowledge"},
+        )
+
+    def test_resolved_scene_adds_only_observable_relevant_evidence(self) -> None:
+        state = fresh_state()
+        scene = {
+            "id": "S-0001",
+            "competitionAxes": ["knowledge", "technology"],
+            "actions": {
+                "black": [{"category": "scout"}],
+                "white": [{"category": "observe"}],
+            },
+        }
+        evidence = gm.record_scene_evidence(state, scene)
+        self.assertIn("黒猫:知識", evidence)
+        self.assertIn("白猫", evidence)
+        self.assertEqual(state["competition"]["score"]["black"]["knowledge"], 1)
+        self.assertEqual(state["competition"]["score"]["white"]["territory"], 0)
+        self.assertEqual(state["competition"]["score"]["white"]["knowledge"], 1)
+        self.assertEqual(len(state["competition"]["evidence"]), 2)
+
+    def test_battle_ruling_updates_provisional_board_once(self) -> None:
+        state = fresh_state()
+        battle = {"id": "B-S-0001", "location": "双月門", "origin": "gm_scene"}
+        gm.record_battle_competition(state, battle, "white", {"black": 2, "white": 8})
+        gm.record_battle_competition(state, battle, "black", {"black": 8, "white": 2})
+        self.assertEqual(state["competition"]["score"]["white"]["military"], 3)
+        self.assertEqual(state["competition"]["score"]["white"]["territory"], 2)
+        self.assertEqual(state["competition"]["control"]["双月門"], "white")
+
     def test_action_protocol_and_categories(self) -> None:
         text = "@gm 戦闘行動 シーンID:S-0001 戦闘ID:B-S-0001 行動:双月門を防衛する"
         self.assertEqual(gm.classify(text), "action")

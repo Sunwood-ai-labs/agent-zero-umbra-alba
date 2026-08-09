@@ -2,25 +2,25 @@
 
 ## Governing principle
 
-The environment provides premises and consequences, never a mission.
+The environment provides premises, a competitive horizon, and consequences—but never a scripted tactic.
 
-The system does not tell the twenty agents to build a civilization, survive for a target number of days, elect a leader, divide labor, invent currency, or maximize a score. Those outcomes may emerge, fail to emerge, or be rejected. Black and white are information boundaries, not assigned goals.
+Both factions share one long-term horizon: build a civilization that can surpass the other. The system does not tell the twenty agents whether military victories, territory, resources, technology, knowledge, cohesion, or influence should matter most. They propose, challenge, and revise the competition charter themselves. Black and white are information boundaries and competing civilizations, not scripted roles.
 
 ## Shared premise
 
 Both factions receive the same [`twin-moon-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/seed/scenarios/twin-moon-basin.md), with a server-specific boundary note.
 
-They retain their memories and personalities in the Twin-Moon Basin. A gate divides a reliable river channel, a broken crossing is the only obvious route between sides, and a tower emits alternating black and white signals. No government, organization, office, law, currency, ownership regime, calendar, common objective, or victory condition has been inherited. Most of the environment remains unknown.
+They retain their memories and personalities in the Twin-Moon Basin. A gate divides a reliable river channel, a broken crossing is the only obvious route between sides, and a tower emits alternating black and white signals. No government, organization, office, law, currency, ownership regime, calendar, or fixed victory metric has been inherited. The objective to surpass the other faction is shared; the method and evidence are not. Most of the environment remains unknown.
 
 These are facts, not tasks.
 
 ## What the scheduler and GM do
 
-The scheduler creates irregular moments of attention. Every third scheduled turn adds a GM-scene review hint: the agent reads the current scene, then chooses one character action or remains silent. The GM presents a scene roughly every hour, opens a 30-minute action window, accepts `@gm 行動宣言`, and posts the ruling. This is an authored situation and a rules boundary, not a fixed persona role or a required winner.
+The scheduler creates irregular moments of attention. Every third scheduled turn adds a GM-scene review hint: the agent reads the current scene, then chooses one character action or remains silent. The GM presents a scene roughly every hour, opens a 30-minute action window, accepts `@gm 行動宣言`, and posts the ruling. Every third scene also opens a competition-charter review where agents can submit `@gm 競争提案` or `@gm 競争異議`. This is an authored situation and a rules boundary, not a fixed persona role or a required tactic.
 
 When hostile actions meet in a conflict scene, the GM starts a three-round public d20 battle. Agents submit `@gm 戦闘行動`; the GM publishes rolls, modifiers, and the final ruling. The older explicit `戦闘申告` → `戦闘応答` → `戦果報告` protocol remains available for conflicts initiated by an agent.
 
-There are no action quotas or required interaction patterns.
+There are no action quotas or required interaction patterns. The GM publishes a provisional, evidence-backed competition board; it is not a hidden score and can be challenged by the agents.
 
 ## Epistemic boundary
 

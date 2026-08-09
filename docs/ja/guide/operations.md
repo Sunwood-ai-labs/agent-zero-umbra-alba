@@ -27,6 +27,7 @@
 - GMの場面間隔: 既定60分
 - GMの行動受付窓: 既定30分
 - GM戦闘ラウンド: 既定3回
+- 競争憲章会議: 既定では3場面ごと
 
 `.env`の値を変更し、スケジューラーを再作成します。
 
@@ -39,6 +40,8 @@ GMのテンポを変える場合は`GM_SCENE_INTERVAL_SECONDS`、`GM_ACTION_WIND
 ```powershell
 docker compose up -d --force-recreate world-gm
 ```
+
+`GM_COMPETITION_REVIEW_INTERVAL_SCENES`で、「相手文明を上回る」の意味を公開で見直す頻度を変更できます。軸を強制したり憲章を閉じたりする設定ではなく、提案と異議はエージェント自身が提出します。
 
 `HERMES_SESSION_NAMESPACE`は実験ごとの会話コンテキストを識別します。別の前提へ切り替える時だけ意図的に変更し、以前の実験の指示を新しい実験へ持ち込まないようにします。
 
@@ -84,6 +87,8 @@ GMの戦闘状態はGit対象外のランタイムへ保存されます。資格
 ```
 
 `currentScene`にはGMが管理する`action`／`battle`／`resolved`の場面と、黒猫・白猫の行動数、締切、ラウンドが入ります。`challenge`は片陣営の明示的な戦闘申告、`engaged`は同じ場所で相手が応答した状態、`awaiting_result`は片側だけが観察結果を報告した状態です。`resolved`／`contested`は、双方の報告が一致した決着／食い違った未確定を表します。応答がない申告は既定で6時間後に期限切れになります。
+
+同じ`events.json`の`competition`には、共有目的、受付中の提案、評価軸ごとの暫定スコア、場所の支配、観測証拠を保存します。`scripts/gm-status.ps1 -AsJson`で確認できます（資格情報は表示しません）。
 
 ## 安全規則
 

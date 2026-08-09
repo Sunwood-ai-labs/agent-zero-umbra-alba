@@ -6,6 +6,12 @@ describes the current situation, accepts player-character action declarations,
 and publishes public rulings.  Agents still choose what their character does;
 the GM controls *when* a scene changes and which world facts become canon.
 
+The campaign has one shared competitive horizon: each faction tries to build a
+civilization that can surpass the other.  The GM does not decide what
+"surpass" means.  It opens recurring competition-charter reviews, records
+proposals from the agents, and publishes a provisional evidence board.  The
+board is deliberately transparent and revisable rather than a hidden objective.
+
 Explicit ``@gm`` battle declarations from the previous version remain
 supported.  In addition, the GM now runs a small turn-based campaign loop:
 
@@ -35,6 +41,34 @@ BATTLE_WINDOW_SECONDS = int(os.getenv("GM_BATTLE_WINDOW_SECONDS", str(6 * 60 * 6
 SCENE_INTERVAL_SECONDS = int(os.getenv("GM_SCENE_INTERVAL_SECONDS", str(60 * 60)))
 ACTION_WINDOW_SECONDS = int(os.getenv("GM_ACTION_WINDOW_SECONDS", str(30 * 60)))
 BATTLE_ROUNDS = int(os.getenv("GM_BATTLE_ROUNDS", "3"))
+COMPETITION_REVIEW_INTERVAL_SCENES = int(os.getenv("GM_COMPETITION_REVIEW_INTERVAL_SCENES", "3"))
+
+COMPETITION_AXIS_LABELS = {
+    "military": "軍事力",
+    "territory": "支配領域",
+    "resources": "資源・生産力",
+    "technology": "技術力",
+    "knowledge": "知識・発見",
+    "cohesion": "陣営の結束",
+    "influence": "影響力・外交",
+}
+COMPETITION_AXIS_ALIASES = {
+    "military": ("軍事", "戦力", "戦闘", "武力"),
+    "territory": ("領域", "拠点", "支配", "土地"),
+    "resources": ("資源", "生産", "食料", "水", "物資"),
+    "technology": ("技術", "道具", "工房", "工学"),
+    "knowledge": ("知識", "発見", "記録", "研究", "観測"),
+    "cohesion": ("結束", "共同体", "協力", "文化", "士気"),
+    "influence": ("外交", "影響", "交渉", "交易", "説得"),
+}
+ACTION_COMPETITION_AXES = {
+    "attack": "military",
+    "defend": "territory",
+    "scout": "knowledge",
+    "observe": "knowledge",
+    "negotiate": "influence",
+    "cooperate": "cohesion",
+}
 
 LOC_RE = re.compile(
     r"(?:双月門|灰河渡し|観測塔|白砂|白土|根張り畑|煤森|黒曜炉跡|"
@@ -68,6 +102,7 @@ RESULT_MARKERS = (
     "結果：",
 )
 ACTION_MARKERS = ("行動宣言", "戦闘行動")
+COMPETITION_MARKERS = ("競争提案", "勝利条件提案", "競争異議", "競争憲章", "評価軸")
 SCENE_ID_RE = re.compile(r"(?:シーンID|scene(?:\s*id)?)\s*[:：#-]?\s*([A-Za-z0-9_-]{4,})", re.IGNORECASE)
 ACTION_RE = re.compile(r"(?:行動|宣言)\s*[:：]\s*(.+)", re.IGNORECASE)
 OUTCOME_WORDS = {
@@ -77,9 +112,9 @@ OUTCOME_WORDS = {
 }
 OPPOSITE = {"black": "white", "white": "black"}
 
-# These are prompts, not a hidden objective or a fixed winner.  The deck gives
-# the GM something concrete to present so the autonomous personas have a
-# reason to make a choice instead of waiting for an operator to intervene.
+# These are prompts, not a hidden tactic or a fixed winner.  The deck gives the
+# GM something concrete to present so autonomous personas have a reason to make
+# a choice.  The competitive axis is a visible provisional label, not an order.
 SCENE_DECK = (
     {
         "location": "灰河渡し",
@@ -87,6 +122,7 @@ SCENE_DECK = (
         "description": "増水で古い渡し杭が一本だけ残った。両岸の物資が同じ浅瀬へ流れ着き、先に固定した陣営が渡河の基準点を得る。",
         "stakes": "渡しの基準点と漂着物をどう扱うか",
         "conflict": True,
+        "competitionAxes": ("territory", "resources"),
     },
     {
         "location": "双月門",
@@ -94,6 +130,7 @@ SCENE_DECK = (
         "description": "双月門の影が昼の途中で二つに割れ、内部から短い金属音が返った。門前の足場は二陣営の視界に同時に入る。",
         "stakes": "門前を調べるか、相手の接近を防ぐか",
         "conflict": True,
+        "competitionAxes": ("territory", "technology", "military"),
     },
     {
         "location": "観測塔",
@@ -101,6 +138,7 @@ SCENE_DECK = (
         "description": "観測塔の頂で、誰も触れていない反射板が三度だけ光った。光の先にはまだ記録されていない地形がある。",
         "stakes": "発見を共有するか、先に測量するか",
         "conflict": False,
+        "competitionAxes": ("knowledge", "technology", "influence"),
     },
     {
         "location": "白砂",
@@ -108,6 +146,7 @@ SCENE_DECK = (
         "description": "白砂の採取面が崩れ、粘土層と黒い鉱片が同時に露出した。足場は不安定で、複数人が入ると二次崩落の恐れがある。",
         "stakes": "危険を分担して調べるか、場所を譲るか",
         "conflict": True,
+        "competitionAxes": ("resources", "technology", "cohesion"),
     },
     {
         "location": "反響洞",
@@ -115,6 +154,7 @@ SCENE_DECK = (
         "description": "反響洞の壁が、直前に発した声ではなく少し前の足音を返した。洞内の別の入口が開いた可能性がある。",
         "stakes": "声と足音の記録を持ち帰るか、入口を先に確保するか",
         "conflict": False,
+        "competitionAxes": ("knowledge", "territory", "influence"),
     },
 )
 
@@ -141,6 +181,56 @@ def load_json(path: Path, default: dict) -> dict:
         return default.copy()
 
 
+def competition_defaults() -> dict:
+    axes = list(COMPETITION_AXIS_LABELS)
+    return {
+        "objective": "相手陣営を上回る文明を築く",
+        "charterStatus": "open",
+        "charterVersion": 0,
+        "proposals": [],
+        "score": {
+            "black": {axis: 0 for axis in axes},
+            "white": {axis: 0 for axis in axes},
+        },
+        "control": {},
+        "evidence": [],
+        "lastReviewScene": 0,
+        "lastReviewId": None,
+        "scoreInitialized": False,
+    }
+
+
+def ensure_competition(state: dict) -> dict:
+    current = state.get("competition")
+    competition = current if isinstance(current, dict) else competition_defaults()
+    defaults = competition_defaults()
+    for key, value in defaults.items():
+        if key not in competition:
+            competition[key] = value
+    if not isinstance(competition.get("proposals"), list):
+        competition["proposals"] = []
+    if not isinstance(competition.get("evidence"), list):
+        competition["evidence"] = []
+    if not isinstance(competition.get("control"), dict):
+        competition["control"] = {}
+    score = competition.get("score")
+    if not isinstance(score, dict):
+        score = {}
+        competition["score"] = score
+    for instance in OPPOSITE:
+        side_score = score.get(instance)
+        if not isinstance(side_score, dict):
+            side_score = {}
+            score[instance] = side_score
+        for axis in COMPETITION_AXIS_LABELS:
+            try:
+                side_score[axis] = int(side_score.get(axis) or 0)
+            except (TypeError, ValueError):
+                side_score[axis] = 0
+    state["competition"] = competition
+    return competition
+
+
 def ensure_state(value: dict) -> dict:
     state = value if isinstance(value, dict) else {}
     state.setdefault("version", 3)
@@ -152,6 +242,7 @@ def ensure_state(value: dict) -> dict:
     state.setdefault("nextSceneAt", 0)
     state.setdefault("sceneSequence", 0)
     state.setdefault("startedAt", time.time())
+    ensure_competition(state)
     if not isinstance(state["seen"], list):
         state["seen"] = []
     if not isinstance(state["battles"], list):
@@ -225,6 +316,8 @@ def credentials(instance: str) -> tuple[str, str]:
 
 
 def classify(text: str) -> str:
+    if any(marker in text for marker in COMPETITION_MARKERS):
+        return "competition"
     if any(marker in text for marker in RESULT_MARKERS):
         return "result"
     if any(marker in text for marker in ACTION_MARKERS):
@@ -314,6 +407,176 @@ def d20(seed: str) -> int:
     return digest[0] % 20 + 1
 
 
+def competition_axes_in_text(text: str) -> list[str]:
+    axes = [
+        key
+        for key, aliases in COMPETITION_AXIS_ALIASES.items()
+        if any(alias in text for alias in aliases)
+    ]
+    return axes or ["unspecified"]
+
+
+def competition_axis_labels(axes: list[str] | tuple[str, ...]) -> str:
+    labels = [COMPETITION_AXIS_LABELS.get(axis, "未分類") for axis in axes]
+    return "、".join(dict.fromkeys(labels)) or "未分類"
+
+
+def competition_score_text(state: dict) -> str:
+    competition = ensure_competition(state)
+    parts = []
+    for instance, label in (("black", "黒猫"), ("white", "白猫")):
+        values = competition["score"][instance]
+        summary = "・".join(
+            f"{COMPETITION_AXIS_LABELS[axis]}:{int(values.get(axis) or 0)}"
+            for axis in COMPETITION_AXIS_LABELS
+        )
+        parts.append(f"{label} {summary}")
+    return "／".join(parts)
+
+
+def action_competition_axis(category: str) -> str | None:
+    return ACTION_COMPETITION_AXES.get(category)
+
+
+def append_competition_evidence(state: dict, evidence: dict) -> None:
+    competition = ensure_competition(state)
+    existing_ids = {str(item.get("id")) for item in competition["evidence"]}
+    if str(evidence.get("id")) in existing_ids:
+        return
+    competition["evidence"].append(evidence)
+    competition["evidence"] = competition["evidence"][-500:]
+
+
+def record_scene_evidence(state: dict, scene: dict) -> str:
+    """Record transparent, low-stakes evidence from a resolved non-battle scene."""
+    competition = ensure_competition(state)
+    relevant = set(scene.get("competitionAxes") or ())
+    summaries = []
+    for instance, label in (("black", "黒猫"), ("white", "白猫")):
+        axes = sorted(
+            {
+                axis
+                for entry in scene_actions(scene, instance)
+                for axis in [action_competition_axis(str(entry.get("category") or "observe"))]
+                if axis and axis in relevant
+            }
+        )
+        if not axes:
+            continue
+        for axis in axes:
+            competition["score"][instance][axis] += 1
+        summaries.append(f"{label}:{competition_axis_labels(axes)} +{len(axes)}")
+        append_competition_evidence(
+            state,
+            {
+                "id": f"scene:{scene['id']}:{instance}",
+                "kind": "scene_evidence",
+                "sceneId": scene["id"],
+                "instance": instance,
+                "axes": axes,
+                "at": iso_now(),
+            },
+        )
+    return "／".join(summaries) or "確定できる競争上の証拠はありません"
+
+
+def battle_winner(battle: dict) -> str | None:
+    if battle.get("origin") == "gm_scene":
+        totals = {
+            instance: sum(
+                int(item.get("scores", {}).get(instance, 0))
+                for item in battle.get("rounds", [])
+            )
+            for instance in OPPOSITE
+        }
+        if totals["black"] > totals["white"]:
+            return "black"
+        if totals["white"] > totals["black"]:
+            return "white"
+        return None
+    reports = battle.get("reports") or {}
+    challenger = (battle.get("challenger") or {}).get("instance")
+    responder = (battle.get("responder") or {}).get("instance")
+    if challenger and responder:
+        if reports.get(challenger, {}).get("outcome") == "win" and reports.get(responder, {}).get("outcome") == "loss":
+            return challenger
+        if reports.get(responder, {}).get("outcome") == "win" and reports.get(challenger, {}).get("outcome") == "loss":
+            return responder
+    return None
+
+
+def record_battle_competition(
+    state: dict,
+    battle: dict,
+    winner: str | None,
+    totals: dict[str, int] | None = None,
+) -> None:
+    """Update the provisional board from an observable battle ruling."""
+    battle_key = f"battle:{battle.get('id')}:resolved"
+    competition = ensure_competition(state)
+    if any(str(item.get("id")) == battle_key for item in competition["evidence"]):
+        return
+    location_value = str(battle.get("location") or "未指定地点")
+    if winner in OPPOSITE:
+        competition["score"][winner]["military"] += 3
+        if location_value != "未指定地点":
+            competition["score"][winner]["territory"] += 2
+            competition["control"][location_value] = winner
+    append_competition_evidence(
+        state,
+        {
+            "id": battle_key,
+            "kind": "battle_ruling",
+            "battleId": battle.get("id"),
+            "location": location_value,
+            "winner": winner,
+            "totals": totals or {},
+            "at": iso_now(),
+        },
+    )
+
+
+def initialize_competition_score(state: dict) -> None:
+    competition = ensure_competition(state)
+    if competition.get("scoreInitialized"):
+        return
+    for battle in state.get("battles", []):
+        if battle.get("status") != "resolved":
+            continue
+        record_battle_competition(state, battle, battle_winner(battle))
+    competition["scoreInitialized"] = True
+
+
+def announce_competition_review(
+    state: dict,
+    urls: dict[str, str],
+    tokens: dict[str, str],
+    scene_sequence: int,
+    force: bool = False,
+) -> None:
+    competition = ensure_competition(state)
+    review_id = f"C-{max(scene_sequence, 1):04d}"
+    if not force and scene_sequence % max(COMPETITION_REVIEW_INTERVAL_SCENES, 1) != 0:
+        return
+    if competition.get("lastReviewId") == review_id:
+        return
+    provisional = "、".join(COMPETITION_AXIS_LABELS.values())
+    message = (
+        f"【競争憲章会議 {review_id}】この文明ゲームの共有目的は、相手陣営を上回る文明を築くことです。"
+        f"ただし、何をもって優越とするかは未確定です。現在の暫定評価軸は{provisional}。"
+        "これは命令でも最終スコアでもありません。各エージェントは自分の価値観から、"
+        "どの軸を重く見るか、何を証拠とするか、戦闘以外にどんな勝ち筋があるかを議論できます。"
+        "提案は`@gm 競争提案 軸:○○ 根拠:○○`、異議は`@gm 競争異議 軸:○○ 理由:○○`で記録します。"
+        f"現在の暫定盤は{competition_score_text(state)}。GMは観測可能な結果だけを更新します。"
+    )
+    for instance in ("black", "white"):
+        post(urls[instance], tokens[instance], message)
+    post(urls["world"], tokens["world"], message)
+    competition["lastReviewScene"] = scene_sequence
+    competition["lastReviewId"] = review_id
+    audit(state, "competition_review_opened", reviewId=review_id, sceneSequence=scene_sequence)
+
+
 def scene_actions(scene: dict, instance: str) -> list[dict]:
     actions = scene.setdefault("actions", {})
     if not isinstance(actions, dict):
@@ -329,12 +592,15 @@ def scene_action_counts(scene: dict) -> dict[str, int]:
 
 
 def scene_prompt(scene: dict) -> str:
+    axes = competition_axis_labels(tuple(scene.get("competitionAxes") or ()))
     return (
         f"【GM場面 {scene['id']}／第{scene['turn']}幕】{scene['location']}「{scene['title']}」。"
         f"{scene['description']} 争点: {scene['stakes']}。"
+        f"この場面で主に変化しうる競争軸: {axes}。"
         "これは現在の場面描写であり、GMが次の世界の事実を裁定します。"
         "各エージェントはこの人物として、観察・偵察・交渉・協力・防衛・挑戦・撤退などから"
         f"この場面での行動を一つ選び、`@gm 行動宣言 シーンID:{scene['id']} 行動:○○`で宣言してください。"
+        "何を勝利に近づける行動とみなすか、評価軸そのものへの異議や提案も自分で考えられます。"
         "まだ起きていない結果を自分の投稿だけで確定させず、GMの裁定を待ちます。"
     )
 
@@ -360,6 +626,7 @@ def begin_scene(state: dict, urls: dict[str, str], tokens: dict[str, str]) -> di
         "description": template["description"],
         "stakes": template["stakes"],
         "conflict": bool(template.get("conflict")),
+        "competitionAxes": list(template.get("competitionAxes") or ()),
         "createdAt": now,
         "createdAtIso": iso_now(now),
         "actionDeadline": now + ACTION_WINDOW_SECONDS,
@@ -374,6 +641,8 @@ def begin_scene(state: dict, urls: dict[str, str], tokens: dict[str, str]) -> di
     state.setdefault("scenes", []).append(scene)
     state["scenes"] = state["scenes"][-50:]
     audit(state, "scene_started", sceneId=scene["id"], location=scene["location"], conflict=scene["conflict"])
+    if sequence == 1 or sequence % max(COMPETITION_REVIEW_INTERVAL_SCENES, 1) == 0:
+        announce_competition_review(state, urls, tokens, sequence)
     announce_scene(scene, urls, tokens)
     print(f"gm: scene started: {scene['id']} {scene['location']} ({scene['title']})", flush=True)
     return scene
@@ -412,6 +681,7 @@ def scene_resolution(scene: dict) -> str:
 
 def finish_scene_without_battle(state: dict, scene: dict, urls: dict[str, str], tokens: dict[str, str]) -> None:
     summary = scene_resolution(scene)
+    competition_evidence = record_scene_evidence(state, scene)
     scene["phase"] = "resolved"
     scene["resolution"] = summary
     scene["resolvedAt"] = time.time()
@@ -420,7 +690,8 @@ def finish_scene_without_battle(state: dict, scene: dict, urls: dict[str, str], 
     message = (
         f"【GM裁定 {scene['id']}】{scene['location']}の場面を終了します。"
         f"黒猫({action_labels(scene_actions(scene, 'black'))})／白猫({action_labels(scene_actions(scene, 'white'))})。{summary}"
-        f" 次の場面は約{SCENE_INTERVAL_SECONDS // 60}分後です。"
+        f" 競争上の観測証拠: {competition_evidence}。"
+        f" 暫定競争盤: {competition_score_text(state)}。次の場面は約{SCENE_INTERVAL_SECONDS // 60}分後です。"
     )
     for instance in ("black", "white"):
         post(urls[instance], tokens[instance], message)
@@ -548,13 +819,17 @@ def resolve_battle_round(state: dict, scene: dict, urls: dict[str, str], tokens:
     final_difference = totals["black"] - totals["white"]
     if final_difference >= 3:
         result = "黒猫側の勝利"
+        winner = "black"
     elif final_difference <= -3:
         result = "白猫側の勝利"
+        winner = "white"
     else:
         result = "双方が決定打を得られず停戦"
+        winner = None
     battle["status"] = "resolved"
     battle["resolution"] = result
     battle["updatedAt"] = time.time()
+    record_battle_competition(state, battle, winner, totals)
     scene["phase"] = "resolved"
     scene["resolution"] = result
     scene["resolvedAt"] = battle["updatedAt"]
@@ -563,7 +838,7 @@ def resolve_battle_round(state: dict, scene: dict, urls: dict[str, str], tokens:
     message = (
         f"【GM決着 {battle['id']}】{scene['location']}の{BATTLE_ROUNDS}ラウンドを終了。"
         f"累計は黒猫{totals['black']}／白猫{totals['white']}。{result}。"
-        f"次の場面は約{SCENE_INTERVAL_SECONDS // 60}分後です。"
+        f"暫定競争盤: {competition_score_text(state)}。次の場面は約{SCENE_INTERVAL_SECONDS // 60}分後です。"
     )
     for instance in ("black", "white"):
         post(urls[instance], tokens[instance], message)
@@ -698,6 +973,49 @@ def expire_battles(state: dict, urls: dict[str, str], tokens: dict[str, str]) ->
         print(f"gm: battle expired: {battle_summary(battle)}", flush=True)
 
 
+def process_competition_proposal(
+    instance: str,
+    base: str,
+    token: str,
+    note_id: str,
+    username: str,
+    text: str,
+    state: dict,
+    urls: dict[str, str],
+    tokens: dict[str, str],
+) -> None:
+    competition = ensure_competition(state)
+    proposal_id = "P-" + hashlib.sha256(note_id.encode()).hexdigest()[:8].upper()
+    if any(str(item.get("id")) == proposal_id for item in competition["proposals"]):
+        return
+    kind = "異議" if "競争異議" in text else "提案"
+    axes = competition_axes_in_text(text)
+    proposal = {
+        "id": proposal_id,
+        "kind": kind,
+        "instance": instance,
+        "username": username,
+        "noteId": note_id,
+        "axes": axes,
+        "text": compact(text),
+        "status": "open",
+        "at": iso_now(),
+    }
+    competition["proposals"].append(proposal)
+    competition["proposals"] = competition["proposals"][-300:]
+    name, other = instance_names(instance)
+    message = (
+        f"【競争憲章受付 {proposal_id}】{name}側の@{username}から{kind}を受理しました。"
+        f"候補軸: {competition_axis_labels(axes)}。"
+        "これは採用済みの勝利条件ではありません。相手側も賛成・反論・別案を自律的に選べます。"
+    )
+    post(base, token, message, note_id)
+    post(urls[OPPOSITE[instance]], tokens[OPPOSITE[instance]], f"{message} {other}側はこの提案への応答を選べます。")
+    post(urls["world"], tokens["world"], f"【競争台帳 {proposal_id}】{name}側が{kind}を提出。候補軸: {competition_axis_labels(axes)}。")
+    audit(state, "competition_proposal", proposalId=proposal_id, instance=instance, kind=kind, axes=axes)
+    print(f"gm: competition proposal: {proposal_id} {instance} {kind}", flush=True)
+
+
 def process_battle_challenge(
     instance: str,
     base: str,
@@ -822,7 +1140,11 @@ def process_battle_result(
     status, summary = reconcile(battle)
     battle["status"] = status
     battle["updatedAt"] = time.time()
+    if status == "resolved":
+        record_battle_competition(state, battle, battle_winner(battle))
     message = f"【GM{'決着' if status == 'resolved' else '未確定'} {battle['id']}】{battle_summary(battle)}。{summary}。"
+    if status == "resolved":
+        message += f" 暫定競争盤: {competition_score_text(state)}。"
     for side_record in (battle.get("challenger") or {}, battle.get("responder") or {}):
         target = side_record.get("instance")
         if target in tokens:
@@ -908,7 +1230,9 @@ def process_instance(instance: str, base: str, token: str, state: dict, urls: di
         kind = classify(text)
         place = location(text)
         count = participants(text)
-        if kind == "action":
+        if kind == "competition":
+            process_competition_proposal(instance, base, token, note_id, username, text, state, urls, tokens)
+        elif kind == "action":
             process_scene_action(instance, base, token, note_id, username, text, state)
         elif kind == "battle":
             process_battle_challenge(instance, base, token, note_id, username, text, place, count, state, urls, tokens)
@@ -937,6 +1261,8 @@ def main() -> None:
         raise ValueError("GM_ACTION_WINDOW_SECONDS must be at least 30 seconds")
     if not 1 <= BATTLE_ROUNDS <= 10:
         raise ValueError("GM_BATTLE_ROUNDS must be between 1 and 10")
+    if COMPETITION_REVIEW_INTERVAL_SCENES < 1:
+        raise ValueError("GM_COMPETITION_REVIEW_INTERVAL_SCENES must be at least 1")
     urls = {
         "black": os.environ["BLACK_URL"],
         "white": os.environ["WHITE_URL"],
@@ -959,11 +1285,15 @@ def main() -> None:
             },
         )
     )
+    initialize_competition_score(state)
+    if state.get("sceneSequence") and not state["competition"].get("lastReviewId"):
+        announce_competition_review(state, urls, tokens, int(state["sceneSequence"]), force=True)
     save_json(STATE_PATH, state)
     print(
         f"Twin-Moon Basin GM active: TRPG scene clock={SCENE_INTERVAL_SECONDS // 60}m, "
         f"action window={ACTION_WINDOW_SECONDS // 60}m, battle rounds={BATTLE_ROUNDS}; "
-        f"battle window={BATTLE_WINDOW_SECONDS // 3600}h.",
+        f"battle window={BATTLE_WINDOW_SECONDS // 3600}h; "
+        f"competition review every {COMPETITION_REVIEW_INTERVAL_SCENES} scenes.",
         flush=True,
     )
     while True:

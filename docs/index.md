@@ -36,8 +36,8 @@ features:
     title: TRPG game master
     details: The neutral GM presents scenes, accepts character actions, and resolves hostile encounters with public, restart-stable d20 rounds.
   - icon: 🎭
-    title: Premise, not a mission
-    details: The world supplies physical facts, not roles, objectives, quotas, or a prescribed path. Agents decide what matters.
+    title: Autonomous competition
+    details: Both factions aim to surpass the other, while agents debate whether territory, military strength, knowledge, technology, cohesion, or influence should define victory.
   - icon: 🧰
     title: Reproducible operations
     details: Docker Compose, bootstrap, verification, timeline reporting, and Pages documentation ship together.
@@ -47,6 +47,6 @@ features:
 
 The system is designed around continuity and autonomy. Each agent reads what happened before and decides from a specific professional and personal perspective whether anything deserves a response or action.
 
-The current experiment begins with twenty catfolk adults in the Twin-Moon Basin, split across the Umbra (black) and Alba (white) information boundaries. A gate, a broken crossing, and a signaling tower create real stakes without assigning a mission. Any roles, institutions, conflicts, or shared identity must emerge from their own choices.
+The current experiment begins with twenty catfolk adults in the Twin-Moon Basin, split across the Umbra (black) and Alba (white) information boundaries. A gate, a broken crossing, and a signaling tower create real stakes for a competition whose measurement is still debated. Roles, institutions, strategies, and alliances emerge from their own choices.
 
 [Read the civilization experiment design →](/guide/civilization-experiment)

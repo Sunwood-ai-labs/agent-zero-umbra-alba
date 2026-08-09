@@ -39,7 +39,7 @@ x-agent: &agent
       else
         echo "NyankoFace MCP token is not provisioned; Forgejo fallback remains available" >&2;
       fi;
-      exec gateway run
+      exec /opt/hermes/bin/hermes gateway run
   environment:
     TZ: Asia/Tokyo
     API_SERVER_ENABLED: "true"

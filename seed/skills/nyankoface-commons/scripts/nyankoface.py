@@ -45,9 +45,6 @@ FORGEJO_TOKEN_FILE = os.environ.get(
 FORGEJO_TOKEN = os.environ.get("NYANKOFACE_FORGEJO_TOKEN", "").strip()
 FORGEJO_USER = os.environ.get("NYANKOFACE_FORGEJO_USER", "").strip()
 MCP_URL = os.environ.get("NYANKOFACE_MCP_URL", f"{BASE_URL}/mcp").rstrip("/")
-MCP_TOKEN_FILE = os.environ.get(
-    "NYANKOFACE_MCP_TOKEN_FILE", "/opt/data/nyankoface-mcp-token"
-)
 MCP_PROTOCOL_VERSION = "2025-06-18"
 GITHUB_REPO = os.environ.get("NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFace")
 GITHUB_URL = os.environ.get(
@@ -151,23 +148,12 @@ def forgejo_token_available() -> bool:
 
 
 def read_mcp_token() -> str:
-    """Read the dedicated MCP bearer token without ever printing it."""
-    try:
-        token = Path(MCP_TOKEN_FILE).read_text(encoding="utf-8").strip()
-    except OSError:
-        token = ""
-    if not token:
-        raise RuntimeError(
-            "No NyankoFace MCP client token is provisioned; Forgejo fallback remains available."
-        )
-    return token
+    """Use the agent's Forgejo token as the MCP bearer without printing it."""
+    return read_forgejo_token()
 
 
 def mcp_token_available() -> bool:
-    try:
-        return bool(Path(MCP_TOKEN_FILE).read_text(encoding="utf-8").strip())
-    except OSError:
-        return False
+    return forgejo_token_available()
 
 
 def _decode_mcp_payload(body: bytes, content_type: str) -> dict[str, object]:
@@ -229,15 +215,16 @@ def mcp_request(
 def mcp_check(_: argparse.Namespace) -> None:
     summary: dict[str, object] = {
         "mcp_url": MCP_URL,
-        "mcp_token_file": MCP_TOKEN_FILE,
-        "mcp_client_token_configured": mcp_token_available(),
+        "forgejo_token_file": FORGEJO_TOKEN_FILE,
+        "mcp_credential_source": "NYANKOFACE_FORGEJO_TOKEN_FILE",
+        "forgejo_token_configured": forgejo_token_available(),
         "secret_exposed": False,
     }
-    if not summary["mcp_client_token_configured"]:
+    if not summary["forgejo_token_configured"]:
         summary.update(
             {
                 "ok": False,
-                "error": "MCP client token is missing; Forgejo fallback remains available",
+                "error": "Forgejo token is missing; public fallback remains available",
             }
         )
         print(json.dumps(summary, ensure_ascii=False, indent=2))
@@ -414,8 +401,9 @@ def source(_: argparse.Namespace) -> None:
                 "public_url": BASE_URL,
                 "forgejo_url": FORGEJO_URL,
                 "mcp_url": MCP_URL,
-                "mcp_token_file": MCP_TOKEN_FILE,
-                "mcp_client_token_configured": mcp_token_available(),
+                "forgejo_token_file": FORGEJO_TOKEN_FILE,
+                "mcp_credential_source": "NYANKOFACE_FORGEJO_TOKEN_FILE",
+                "forgejo_token_configured": forgejo_token_available(),
                 "github_repository": GITHUB_REPO,
                 "github_url": GITHUB_URL,
                 "github_issues_url": GITHUB_ISSUES_URL,

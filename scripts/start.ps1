@@ -2,8 +2,7 @@
 param(
     [switch]$PublishWithTailscale,
     [ValidateRange(1, 65535)]
-    [int]$TailscaleHttpsPort = 8470,
-    [switch]$SkipNyankoFaceMcpProvisioning
+    [int]$TailscaleHttpsPort = 8470
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,14 +18,6 @@ if ($PublishWithTailscale) {
         -WorldHttpsPort $TailscaleHttpsPort
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
-    }
-}
-
-if (-not $SkipNyankoFaceMcpProvisioning) {
-    & (Join-Path $PSScriptRoot "provision-nyankoface-mcp-tokens.ps1") `
-        -ProjectRoot $projectRoot
-    if ($LASTEXITCODE -ne 0) {
-        throw "NyankoFace MCP token provisioning failed."
     }
 }
 

@@ -33,11 +33,11 @@ x-agent: &agent
     - sh
     - -lc
     - >-
-      if [ -s "$$NYANKOFACE_MCP_TOKEN_FILE" ]; then
-        export NYANKOFACE_MCP_TOKEN="$$(cat "$$NYANKOFACE_MCP_TOKEN_FILE")";
-        echo "NyankoFace MCP token loaded from protected file";
+      if [ -s "$$NYANKOFACE_FORGEJO_TOKEN_FILE" ]; then
+        export NYANKOFACE_MCP_TOKEN="$$(cat "$$NYANKOFACE_FORGEJO_TOKEN_FILE")";
+        echo "NyankoFace Forgejo token loaded for Forgejo and MCP";
       else
-        echo "NyankoFace MCP token is not provisioned; Forgejo fallback remains available" >&2;
+        echo "NyankoFace Forgejo token is not provisioned; public fallback remains available" >&2;
       fi;
       exec /opt/hermes/bin/hermes gateway run
   environment:
@@ -52,7 +52,6 @@ x-agent: &agent
     NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
     NYANKOFACE_MCP_URL: ${NYANKOFACE_MCP_URL:-https://madesk.tail8be30.ts.net/mcp}
     NYANKOFACE_FORGEJO_TOKEN_FILE: /opt/data/nyankoface-forgejo-token
-    NYANKOFACE_MCP_TOKEN_FILE: /opt/data/nyankoface-mcp-token
   secrets:
     - github_agent_token
 
@@ -115,7 +114,6 @@ services:
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
       NYANKOFACE_MCP_URL: ${NYANKOFACE_MCP_URL:-https://madesk.tail8be30.ts.net/mcp}
       NYANKOFACE_FORGEJO_TOKEN_FILE: ${NYANKOFACE_FORGEJO_TOKEN_FILE:-/opt/data/nyankoface-forgejo-token}
-      NYANKOFACE_MCP_TOKEN_FILE: ${NYANKOFACE_MCP_TOKEN_FILE:-/opt/data/nyankoface-mcp-token}
       NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_GITHUB_URL: ${NYANKOFACE_GITHUB_URL:-https://github.com/Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_LOCAL_PATH: ${NYANKOFACE_LOCAL_PATH:-}
@@ -186,7 +184,6 @@ services:
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
       NYANKOFACE_MCP_URL: ${NYANKOFACE_MCP_URL:-https://madesk.tail8be30.ts.net/mcp}
       NYANKOFACE_FORGEJO_TOKEN_FILE: ${NYANKOFACE_FORGEJO_TOKEN_FILE:-/opt/data/nyankoface-forgejo-token}
-      NYANKOFACE_MCP_TOKEN_FILE: ${NYANKOFACE_MCP_TOKEN_FILE:-/opt/data/nyankoface-mcp-token}
       NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_GITHUB_URL: ${NYANKOFACE_GITHUB_URL:-https://github.com/Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_LOCAL_PATH: ${NYANKOFACE_LOCAL_PATH:-}
@@ -257,7 +254,6 @@ services:
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
       NYANKOFACE_MCP_URL: ${NYANKOFACE_MCP_URL:-https://madesk.tail8be30.ts.net/mcp}
       NYANKOFACE_FORGEJO_TOKEN_FILE: ${NYANKOFACE_FORGEJO_TOKEN_FILE:-/opt/data/nyankoface-forgejo-token}
-      NYANKOFACE_MCP_TOKEN_FILE: ${NYANKOFACE_MCP_TOKEN_FILE:-/opt/data/nyankoface-mcp-token}
       NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_GITHUB_URL: ${NYANKOFACE_GITHUB_URL:-https://github.com/Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_LOCAL_PATH: ${NYANKOFACE_LOCAL_PATH:-}

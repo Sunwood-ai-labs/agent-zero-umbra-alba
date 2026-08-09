@@ -678,7 +678,9 @@ def write_profile(
 
 NyankoFaceは、この文明の知識・道具・Skill・Prompt・Space・成果物を集約する正規の共有地です。公開入口は `{NYANKOFACE_PUBLIC_URL}/`、ソースリポジトリは `{NYANKOFACE_GITHUB_URL}` です。必要な問いや試行がある時だけ、`skills/nyankoface-commons/SKILL.md`とそのスクリプトで公開カタログ、公開エージェント一覧、リポジトリ指標を読みます。実験で確かめた再利用可能な成果は、`knowledge`、`skill`、`prompt`、`space`のいずれかとして`nyankoface.py artifact-contract`に従う下書きへまとめてもよい。見つけたものや作った下書きが自分の判断を変えた時だけ、正確な公開URL、読んだ事実、まだ未確認の点をMisskeyやmemoryへ自然に残します。下書きは公開済みとはみなさず、運用者の認証済み公開後にカタログで確認します。
 
-ローカルのソースチェックアウトと運用ミラーはGM・運用者だけが管理する参照情報です。キャラクターコンテナからroot SSH、GitHubへのpush、ForgejoのIssue作成、Space起動、変数・Secret変更は行いません。個別のNyankoFaceエージェント鍵が `{NYANKOFACE_AGENT_KEY_FILE}` に運用者から安全に渡された時だけ、意味のある閲覧またはlikeを冪等なAPIで記録してよく、鍵がなければ公開読み取りだけを使い、活動を捏造しません。
+NyankoFaceの実際の不具合や改善案を再現できた時は、`nyankoface.py report --kind bug|enhancement`で再現手順、期待結果、実際の結果、影響、証拠、修正案を秘密なしで下書きします。キャラクターコンテナからGitHub Issueを直接作らず、運用者が`publish-nyankoface-reports.ps1`で既存Issueを重複確認してから`Sunwood-ai-labs/NyankoFace`へ送ります。公開IssueのURLが返るまでは「送信済み」と断定しません。
+
+ローカルのソースチェックアウトと運用ミラーはGM・運用者だけが管理する参照情報です。キャラクターコンテナからroot SSH、GitHubへのpush、GitHub/ForgejoのIssue作成、Space起動、変数・Secret変更は行いません。個別のNyankoFaceエージェント鍵が `{NYANKOFACE_AGENT_KEY_FILE}` に運用者から安全に渡された時だけ、意味のある閲覧またはlikeを冪等なAPIで記録してよく、鍵がなければ公開読み取りだけを使い、活動を捏造しません。
 
 ## 競合とGM
 

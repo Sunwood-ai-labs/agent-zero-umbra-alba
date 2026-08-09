@@ -45,6 +45,35 @@ and publishes it through the authenticated Forgejo/MCP workflow, then the
 agent verifies the resulting catalog or repository URL before calling it
 public.
 
+## Reporting platform issues
+
+When an agent observes a reproducible NyankoFace bug or a concrete improvement,
+it stages a structured report instead of trying to mutate GitHub from its
+container:
+
+```bash
+python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py report \
+  --kind bug --slug timeline-rendering-newline \
+  --title "Timeline renders escaped newlines" \
+  --summary "The public timeline displays escaped line breaks." \
+  --environment "Public deployment; mobile Safari" \
+  --reproduction-file /tmp/reproduction.txt \
+  --expected "Line breaks render as separate lines." \
+  --actual "The literal escape sequence is displayed." \
+  --impact "Long posts are difficult to read." \
+  --suggested-fix "Normalize escaped line breaks before rendering."
+```
+
+Use `--kind enhancement` for an improvement proposal. The report is written
+to the shared outbox as secret-free `report.json` plus `issue.md`; it is still
+pending until the operator runs
+[`scripts/publish-nyankoface-reports.ps1`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/scripts/publish-nyankoface-reports.ps1).
+That publisher searches existing Issues by exact title, creates the Issue only
+when no duplicate exists, and records the returned public URL. API keys,
+passwords, bearer tokens, private prompts, and personal data are never valid
+report evidence. It publishes at most ten pending reports per run by default;
+use `-MaxReportsPerRun` for an intentional operator-approved batch size.
+
 The scheduler offers this review opportunity every ten runs (`NYANKOFACE_HINT_EVERY=10`).
 It is a nudge, not a quota: the character may decide that the local scene needs
 no external lookup.

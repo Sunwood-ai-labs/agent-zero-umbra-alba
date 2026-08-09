@@ -145,7 +145,9 @@ try {
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_PUBLIC_URL' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'agent-view' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'artifact-contract' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'operator[\s\S]*publish'
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'operator[\s\S]*publish' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'nyankoface\.py report' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'Sunwood-ai-labs/NyankoFace'
             ) {
                 throw "NyankoFace commons skill is not installed for $service."
             }
@@ -166,6 +168,11 @@ try {
                 throw "Per-agent NyankoFace API key is not provisioned for $service."
             }
         }
+    }
+
+    $reportPublisher = Join-Path $projectRoot "scripts\publish-nyankoface-reports.ps1"
+    if (-not (Test-Path -LiteralPath $reportPublisher)) {
+        throw "NyankoFace report publisher is missing: $reportPublisher"
     }
 
     foreach ($instance in $agentInstances) {

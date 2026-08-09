@@ -36,6 +36,7 @@ GITHUB_REPO = os.environ.get("NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFa
 GITHUB_URL = os.environ.get(
     "NYANKOFACE_GITHUB_URL", f"https://github.com/{GITHUB_REPO}"
 ).rstrip("/")
+GITHUB_ISSUES_URL = f"{GITHUB_URL}/issues"
 LOCAL_PATH = os.environ.get("NYANKOFACE_LOCAL_PATH", "")
 SSH_TARGET = os.environ.get("NYANKOFACE_SSH_TARGET", "")
 AGENT_KEY_FILE = os.environ.get(
@@ -46,10 +47,20 @@ OUTBOX_DIR = Path(
     os.environ.get("NYANKOFACE_OUTBOX_DIR", "/opt/data/nyankoface-outbox")
 )
 ARTIFACT_KINDS = ("knowledge", "skill", "prompt", "space")
+REPORT_KINDS = ("bug", "enhancement")
 SAFE_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 SECRET_SHAPES = re.compile(
     r"(?i)(?:api[_-]?key|password|access[_-]?token|bearer\s+[A-Za-z0-9._-]{20,}|BEGIN [A-Z ]*PRIVATE KEY)"
 )
+REPORT_SECRET_VALUES = re.compile(
+    r"(?ix)"
+    r"(?:\b(?:api[_-]?key|password|access[_-]?token|secret|private[_-]?key)\s*[:=]\s*\S+)"
+    r"|(?:\bbearer\s+[A-Za-z0-9._-]{20,})"
+    r"|(?:\b(?:gh[pousr]_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9_./-]{16,})"
+    r"|(?:-----BEGIN\s+[A-Z ]*PRIVATE KEY-----)"
+    r"|(?:https?://[^\s/@:]+:[^\s/@]+@)"
+)
+REPORT_FIELD_LIMIT = 256 * 1024
 
 
 def request_json(path: str, *, method: str = "GET", headers: dict[str, str] | None = None) -> object:
@@ -141,11 +152,12 @@ def source(_: argparse.Namespace) -> None:
                 "public_url": BASE_URL,
                 "github_repository": GITHUB_REPO,
                 "github_url": GITHUB_URL,
+                "github_issues_url": GITHUB_ISSUES_URL,
                 "operator_local_checkout_configured": bool(LOCAL_PATH),
                 "operator_ssh_mirror_configured": bool(SSH_TARGET),
                 "character_agent_key_configured": agent_key_configured(),
                 "artifact_home": "NyankoFace canonical commons",
-                "publish_mode": "operator-reviewed Forgejo/MCP workflow",
+                "publish_mode": "operator-reviewed GitHub Issues/Forgejo/MCP workflow",
             },
             ensure_ascii=False,
             indent=2,
@@ -163,6 +175,12 @@ def artifact_contract(_: argparse.Namespace) -> None:
                 "metadata": ["kind", "slug", "title", "agent", "source", "created_at"],
                 "publish_boundary": "staged drafts require operator-reviewed authenticated publication",
                 "secret_policy": "keys, passwords, tokens, and private keys are rejected",
+                "issue_reporting": {
+                    "kinds": list(REPORT_KINDS),
+                    "command": "nyankoface.py report",
+                    "destination": GITHUB_ISSUES_URL,
+                    "publication": "operator duplicate-checks and creates GitHub Issues",
+                },
             },
             ensure_ascii=False,
             indent=2,
@@ -212,6 +230,119 @@ def draft_artifact(args: argparse.Namespace) -> None:
     )
 
 
+def read_report_file(path_value: str, *, label: str, required: bool = True) -> str:
+    if not path_value and not required:
+        return ""
+    try:
+        body = Path(path_value).read_text(encoding="utf-8")
+    except OSError as exc:
+        if not required and isinstance(exc, FileNotFoundError):
+            return ""
+        raise RuntimeError(f"{label} could not be read: {path_value}") from exc
+    if len(body.encode("utf-8")) > REPORT_FIELD_LIMIT:
+        raise RuntimeError(f"{label} exceeds the 256 KiB report limit")
+    if required and not body.strip():
+        raise RuntimeError(f"{label} must not be empty")
+    return body.strip()
+
+
+def ensure_report_secret_free(fields: dict[str, str]) -> None:
+    for name, value in fields.items():
+        if REPORT_SECRET_VALUES.search(value):
+            raise RuntimeError(f"{name} resembles a credential; remove secrets before staging")
+
+
+def report_issue(args: argparse.Namespace) -> None:
+    if args.kind not in REPORT_KINDS:
+        raise RuntimeError(f"unsupported report kind: {args.kind}")
+    if not SAFE_SLUG.fullmatch(args.slug):
+        raise RuntimeError("report slug must contain lowercase letters, numbers, and hyphens")
+    if not SAFE_SLUG.fullmatch(AGENT_SLUG):
+        raise RuntimeError("NYANKOFACE_AGENT_SLUG is not a safe identity slug")
+
+    title = args.title.strip()
+    summary = args.summary.strip()
+    environment = args.environment.strip()
+    expected = args.expected.strip()
+    actual = args.actual.strip()
+    impact = args.impact.strip()
+    suggested_fix = args.suggested_fix.strip()
+    if not title or not summary or not environment or not expected or not actual or not impact or not suggested_fix:
+        raise RuntimeError("title, summary, environment, expected, actual, impact, and suggested-fix must not be empty")
+    if "\n" in title or "\r" in title:
+        raise RuntimeError("report title must be a single line")
+    if len(title) > 180:
+        raise RuntimeError("report title must be 180 characters or fewer")
+    reproduction = read_report_file(args.reproduction_file, label="reproduction steps")
+    evidence = read_report_file(args.evidence_file, label="evidence", required=False) or "No additional evidence was attached."
+    fields = {
+        "title": title,
+        "summary": summary,
+        "environment": environment,
+        "reproduction": reproduction,
+        "expected": expected,
+        "actual": actual,
+        "impact": impact,
+        "evidence": evidence,
+        "suggested_fix": suggested_fix,
+    }
+    ensure_report_secret_free(fields)
+
+    issue_title = f"[NyankoFace] {title}"
+    target = OUTBOX_DIR / "reports" / AGENT_SLUG / f"{args.kind}-{args.slug}"
+    if target.exists() and not args.force:
+        raise RuntimeError(f"report already exists; pass --force to replace it: {target}")
+    target.mkdir(parents=True, exist_ok=True)
+    created_at = dt.datetime.now(dt.timezone.utc).isoformat()
+    metadata = {
+        "version": 1,
+        "kind": args.kind,
+        "slug": args.slug,
+        "title": issue_title,
+        "agent": AGENT_SLUG,
+        "repository": GITHUB_REPO,
+        "issues_url": GITHUB_ISSUES_URL,
+        "source": f"{BASE_URL}/",
+        "created_at": created_at,
+        "publication": "pending-github-issue",
+        "status": "pending",
+    }
+    issue_body = "\n".join(
+        [
+            "<!-- Generated by the NyankoFace commons report contract. Do not add credentials. -->",
+            f"## Summary\n{summary}",
+            "## Environment\n" + environment,
+            "## Reproduction steps\n" + reproduction,
+            "## Expected behavior\n" + expected,
+            "## Actual behavior\n" + actual,
+            "## Impact\n" + impact,
+            "## Evidence\n" + evidence,
+            "## Suggested fix\n" + suggested_fix,
+            "## Reporter\n"
+            f"- Agent: `{AGENT_SLUG}`\n"
+            f"- Source: {BASE_URL}/\n"
+            f"- Report kind: `{args.kind}`",
+        ]
+    ).rstrip() + "\n"
+    (target / "issue.md").write_text(issue_body, encoding="utf-8")
+    (target / "report.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {
+                "staged": True,
+                "kind": args.kind,
+                "slug": args.slug,
+                "title": issue_title,
+                "publication": metadata["publication"],
+                "report_path": str(target),
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
 def authenticated_action(args: argparse.Namespace, *, like: bool) -> None:
     key = read_agent_key()
     owner = urllib.parse.quote(args.owner, safe="")
@@ -250,6 +381,21 @@ def main() -> None:
     draft.add_argument("--body-file", required=True)
     draft.add_argument("--force", action="store_true")
     draft.set_defaults(handler=draft_artifact)
+
+    report = sub.add_parser("report")
+    report.add_argument("--kind", required=True, choices=REPORT_KINDS)
+    report.add_argument("--slug", required=True)
+    report.add_argument("--title", required=True)
+    report.add_argument("--summary", required=True)
+    report.add_argument("--environment", required=True)
+    report.add_argument("--reproduction-file", required=True)
+    report.add_argument("--expected", required=True)
+    report.add_argument("--actual", required=True)
+    report.add_argument("--impact", required=True)
+    report.add_argument("--evidence-file")
+    report.add_argument("--suggested-fix", required=True)
+    report.add_argument("--force", action="store_true")
+    report.set_defaults(handler=report_issue)
 
     catalog = sub.add_parser("catalog")
     catalog.add_argument("--limit", type=int, default=8, choices=range(1, 31))

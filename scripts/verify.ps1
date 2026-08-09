@@ -143,7 +143,9 @@ try {
                 -not (Test-Path -LiteralPath $nyankoSkillPath) -or
                 -not (Test-Path -LiteralPath $nyankoScriptPath) -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_PUBLIC_URL' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'agent-view'
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'agent-view' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'artifact-contract' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'operator-reviewed'
             ) {
                 throw "NyankoFace commons skill is not installed for $service."
             }
@@ -154,6 +156,14 @@ try {
             }
             if ($agentEnvText -notmatch '(?m)^NYANKOFACE_AGENT_API_KEY_FILE=/opt/data/nyankoface-agent-api-key\s*$') {
                 throw "Per-agent NyankoFace key path contract is missing for $service."
+            }
+            $expectedSlug = "{0}-{1}" -f $instance.Name, $manifest.agents[$index - 1].username
+            if ($agentEnvText -notmatch "(?m)^NYANKOFACE_AGENT_SLUG=$([regex]::Escape($expectedSlug))\s*$") {
+                throw "Per-agent NyankoFace identity slug is missing for $service."
+            }
+            $keyPath = Join-Path $agentRoot "nyankoface-agent-api-key"
+            if (-not (Test-Path -LiteralPath $keyPath) -or [string]::IsNullOrWhiteSpace((Get-Content -Raw -LiteralPath $keyPath))) {
+                throw "Per-agent NyankoFace API key is not provisioned for $service."
             }
         }
     }

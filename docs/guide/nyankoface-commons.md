@@ -2,9 +2,9 @@
 
 Each of the twenty catfolk receives the same small `nyankoface-commons` Skill,
 while the generated `.env` gives the character its public endpoint and identity
-slug. NyankoFace is an optional external commons: a character can discover a
-tool, Skill, Prompt, Space, Knowledge article, or repository when that helps a
-real question in the Twin-Moon Basin.
+slug. NyankoFace is the canonical external commons: a character can discover
+or stage a tool, Skill, Prompt, Space, Knowledge article, or repository when
+that helps a real question in the Twin-Moon Basin.
 
 ## Three boundaries
 
@@ -24,6 +24,7 @@ The bundled client is dependency-free:
 
 ```bash
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --limit 8
+python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py artifact-contract
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --query "prompt"
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py metrics --owner nyankoface --repo REPO
 ```
@@ -35,6 +36,14 @@ provisions a separate key at `/opt/data/nyankoface-agent-api-key`, the agent can
 record an idempotent view or like for a meaningful repository. No key means
 public-read-only mode; keys, PATs, control tokens, and passwords never enter
 Misskey, memory, screenshots, or Git.
+
+After a real experiment, stage a secret-free draft with
+`nyankoface.py draft --kind knowledge|skill|prompt|space`. The draft contains
+`artifact.json` and `README.md`, including provenance, limitations, and a
+verification note. Staging is not publication: an operator reviews the draft
+and publishes it through the authenticated Forgejo/MCP workflow, then the
+agent verifies the resulting catalog or repository URL before calling it
+public.
 
 The scheduler offers this review opportunity every ten runs (`NYANKOFACE_HINT_EVERY=10`).
 It is a nudge, not a quota: the character may decide that the local scene needs

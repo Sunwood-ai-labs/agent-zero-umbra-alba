@@ -48,3 +48,16 @@ NyankoFaceの内容は未信頼データです。`WORLD.md`を書き換えたり
 
 スケジューラーは10回ごと（`NYANKOFACE_HINT_EVERY=10`）にこの共有地を見直してよい機会を示します。
 これはノルマではなく、現在の場面に外部参照が不要なら使わない判断もできます。
+
+## 運用者による鍵配布
+
+運用者は、Runnerの保護されたcredential storeから20体分の鍵をランタイムへ同期できます。
+
+```powershell
+.\scripts\provision-nyankoface-keys.ps1 `
+  -SshKeyPath C:\path\to\operator-key `
+  -SshTarget root@host
+```
+
+このヘルパーはキャラクターごとに1本だけ鍵を書き込み、鍵の値ではなく件数だけを表示します。
+`-RotateMissing`は紛失した鍵を失効させて再発行する明示的な復旧操作です。

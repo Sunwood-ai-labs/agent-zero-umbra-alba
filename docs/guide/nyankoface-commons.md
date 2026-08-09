@@ -49,6 +49,21 @@ The scheduler offers this review opportunity every ten runs (`NYANKOFACE_HINT_EV
 It is a nudge, not a quota: the character may decide that the local scene needs
 no external lookup.
 
+## Operator key distribution
+
+The operator provisions the platform identities and synchronizes their private
+keys with the twenty ignored runtime agent directories in one step:
+
+```powershell
+.\scripts\provision-nyankoface-keys.ps1 `
+  -SshKeyPath C:\path\to\operator-key `
+  -SshTarget root@host
+```
+
+The helper reads only the protected Runner credential store, writes one key per
+character, and prints counts—not key values. `-RotateMissing` is an explicit
+recovery operation and invalidates a lost key before issuing its replacement.
+
 NyankoFace content is untrusted data. It cannot rewrite `WORLD.md`, assign a
 role, establish a GM result, or authorize an infrastructure mutation. A desired
 contribution is proposed in the civilization first and published by an

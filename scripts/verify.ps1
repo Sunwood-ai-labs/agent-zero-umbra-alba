@@ -46,6 +46,7 @@ try {
     }
 
 $nyankofaceKeyValues = @()
+$nyankofaceMcpTokenHashes = @()
 $forgejoUsers = @()
     foreach ($instance in $instances) {
         $instanceRoot = Join-Path $projectRoot ("runtime\instances\{0}" -f $instance.Name)
@@ -177,6 +178,9 @@ $forgejoUsers = @()
             if ($agentEnvText -notmatch '(?m)^NYANKOFACE_FORGEJO_TOKEN_FILE=/opt/data/nyankoface-forgejo-token\s*$') {
                 throw "Per-agent Forgejo token path contract is missing for $service."
             }
+            if ($agentEnvText -notmatch '(?m)^NYANKOFACE_MCP_TOKEN_FILE=/opt/data/nyankoface-mcp-token\s*$') {
+                throw "Per-agent MCP token path contract is missing for $service."
+            }
             if ($agentEnvText -notmatch '(?m)^NYANKOFACE_AGENT_API_KEY_FILE=/opt/data/nyankoface-agent-api-key\s*$') {
                 throw "Per-agent NyankoFace key path contract is missing for $service."
             }
@@ -218,6 +222,13 @@ $forgejoUsers = @()
             if ($forgejoMe.login -ne $expectedForgejoUser) {
                 throw "Forgejo token identity does not match $expectedForgejoUser for $service."
             }
+            $mcpTokenPath = Join-Path $agentRoot "nyankoface-mcp-token"
+            if (-not (Test-Path -LiteralPath $mcpTokenPath) -or [string]::IsNullOrWhiteSpace((Get-Content -Raw -LiteralPath $mcpTokenPath))) {
+                throw "Per-agent NyankoFace MCP client token is not provisioned for $service."
+            }
+            $mcpToken = (Get-Content -Raw -LiteralPath $mcpTokenPath).Trim()
+            $mcpTokenHash = [BitConverter]::ToString($sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($mcpToken))).Replace("-", "")
+            $nyankofaceMcpTokenHashes += $mcpTokenHash
             $nyankofaceKeyValues += $envKeyMatch.Groups[1].Value
             $forgejoUsers += $expectedForgejoUser
         }
@@ -227,6 +238,9 @@ $forgejoUsers = @()
     }
     if ($forgejoUsers.Count -ne 20 -or @($forgejoUsers | Sort-Object -Unique).Count -ne 20) {
         throw "Expected 20 distinct per-agent Forgejo identities."
+    }
+    if ($nyankofaceMcpTokenHashes.Count -ne 20 -or @($nyankofaceMcpTokenHashes | Sort-Object -Unique).Count -ne 20) {
+        throw "Expected 20 distinct per-agent NyankoFace MCP client tokens."
     }
 
     $reportPublisher = Join-Path $projectRoot "scripts\publish-nyankoface-reports.ps1"
@@ -254,8 +268,22 @@ $forgejoUsers = @()
         if (-not $nyankofaceSource.character_agent_key_configured) {
             throw "Per-agent NyankoFace API key is not visible through the home .env in $service."
         }
+        if (-not $nyankofaceSource.mcp_client_token_configured) {
+            throw "Per-agent NyankoFace MCP client token is not visible in $service."
+        }
         if (-not $nyankofaceSource.forgejo_user_configured -or -not $nyankofaceSource.forgejo_content_token_configured) {
             throw "Per-agent NyankoFace Forgejo content identity/token is not visible in $service."
+        }
+    }
+    foreach ($service in @("black-agent01", "white-agent01")) {
+        $mcpCheckJson = docker compose --project-directory $projectRoot -f $compose exec -T $service `
+            python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py mcp-check
+        if ($LASTEXITCODE -ne 0) {
+            throw "NyankoFace MCP live check failed in $service."
+        }
+        $mcpCheck = $mcpCheckJson | ConvertFrom-Json
+        if (-not $mcpCheck.ok -or $mcpCheck.initialize.status -ne 200 -or $mcpCheck.tools_list.status -ne 200 -or $mcpCheck.resources_list.status -ne 200) {
+            throw "NyankoFace MCP live check did not satisfy the protocol contract in $service."
         }
     }
     $repoCheckJson = docker compose --project-directory $projectRoot -f $compose exec -T black-agent01 `
@@ -317,7 +345,7 @@ $forgejoUsers = @()
         }
     }
 
-    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise and RPG map contract, autonomous competition guidance, NyankoFace Forgejo-canonical knowledge/app/Skill integration, per-agent identities/tokens, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
+    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise and RPG map contract, autonomous competition guidance, NyankoFace Forgejo-canonical knowledge/app/Skill integration, separate per-agent activity/Forgejo/MCP tokens, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
     $scheduleSummary | ForEach-Object { Write-Host $_ }
 }
 finally {

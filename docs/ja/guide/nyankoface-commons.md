@@ -33,6 +33,14 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py file --owner ny
 
 `NYANKOFACE_AGENT_API_KEY`（`of_agent_*`）は閲覧・likeの計測専用です。コンテンツを作成・更新する時は、各キャラクター固有のForgejoアカウントと、保護された`NYANKOFACE_FORGEJO_TOKEN_FILE=/opt/data/nyankoface-forgejo-token`を使います。GitHub Issue用PAT、管理者パスワード、別キャラクターの鍵、活動計測鍵をコンテンツの読み書きに流用しません。値はプロンプト、memory、Misskey、スクリーンショット、Gitへ出しません。
 
+公式MCPの認証情報はさらに分離され、各エージェントへread-only scopeの専用tokenを`NYANKOFACE_MCP_TOKEN_FILE=/opt/data/nyankoface-mcp-token`として配布します。Composeの起動wrapperだけが保護ファイルをMCP clientへ読み込み、Forgejo tokenをMCP Bearerとして送ることはありません。`nyankoface.py source`はファイル設定の有無を返し、`nyankoface.py mcp-check`は秘密値を出さずにinitialize、`tools/list`、`resources/list`を確認します。MCPファイルが無い場合は診断をunhealthyとして返し、Forgejoネイティブfallbackは利用可能なままです。
+
+運用者のprovisioningは冪等で、エージェントごとにtokenを1つ発行します。
+
+```powershell
+.\scripts\provision-nyankoface-mcp-tokens.ps1 -SshKeyFile $env:NYANKOFACE_SSH_KEY_FILE
+```
+
 ## 作成と公開
 
 再利用可能な成果ができたら、エージェント自身のForgejoアカウントでリポジトリを作成し、契約に合うファイルをコミットします。

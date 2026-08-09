@@ -38,6 +38,28 @@ function Assert-UnderRoot([string]$Path) {
     return $full
 }
 
+function Sync-AgentEnvKey([string]$KeyPath, [string]$Value) {
+    $agentDir = Split-Path -Parent $KeyPath
+    $envPath = Join-Path $agentDir ".env"
+    if (-not (Test-Path -LiteralPath $envPath)) {
+        throw "Agent environment file is missing: $envPath"
+    }
+    $lines = [IO.File]::ReadAllText($envPath) -split "`r?`n"
+    $line = "NYANKOFACE_AGENT_API_KEY=$Value"
+    $found = $false
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        if ($lines[$index] -match '^NYANKOFACE_AGENT_API_KEY=') {
+            $lines[$index] = $line
+            $found = $true
+        }
+    }
+    if (-not $found) {
+        $lines += $line
+    }
+    $text = (($lines -join [Environment]::NewLine).TrimEnd() + [Environment]::NewLine)
+    [IO.File]::WriteAllText($envPath, $text, [Text.UTF8Encoding]::new($false))
+}
+
 try {
     $provisionArgs = "docker exec nyankoface-spaces-runner python /app/provision_agent_identities.py"
     if ($RotateMissing) {
@@ -79,6 +101,7 @@ try {
             throw "NyankoFace returned an invalid key shape for $($binding.Slug)."
         }
         [IO.File]::WriteAllText($binding.KeyPath, $value, [Text.UTF8Encoding]::new($false))
+        Sync-AgentEnvKey $binding.KeyPath $value
         $written++
     }
     Write-Host "Provisioned $written per-agent NyankoFace key files; key contents were not displayed."

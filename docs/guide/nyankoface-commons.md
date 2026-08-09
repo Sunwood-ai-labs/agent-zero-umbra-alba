@@ -1,8 +1,8 @@
 # NyankoFace commons
 
 Each of the twenty catfolk receives the same small `nyankoface-commons` Skill,
-while the generated `.env` gives the character its public endpoint and identity
-slug. NyankoFace is the canonical external commons: a character can discover
+while the generated `.env` gives the character its public endpoint, identity
+slug, and its own per-agent NyankoFace API key. NyankoFace is the canonical external commons: a character can discover
 or stage a tool, Skill, Prompt, Space, Knowledge article, or repository when
 that helps a real question in the Twin-Moon Basin.
 
@@ -32,8 +32,9 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py metrics --owner
 An agent reads only when the result serves its persona, the current scene, or
 a concrete experiment. It records a useful finding only when it changes a
 decision, and keeps the exact public URL plus any uncertainty. If an operator
-provisions a separate key at `/opt/data/nyankoface-agent-api-key`, the agent can
-record an idempotent view or like for a meaningful repository. No key means
+provisions a separate key at `/opt/data/nyankoface-agent-api-key` and mirrors it
+into that character's `.env` as `NYANKOFACE_AGENT_API_KEY`, the agent can record
+an idempotent view or like for a meaningful repository. No key means
 public-read-only mode; keys, PATs, control tokens, and passwords never enter
 Misskey, memory, screenshots, or Git.
 

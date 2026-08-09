@@ -1,7 +1,8 @@
 # NyankoFace共有地
 
 20体の猫族には、同じ小さな`nyankoface-commons` Skillが配られます。
-生成される`.env`には公開入口と各キャラクターの識別子が入り、必要な問い
+生成される`.env`には公開入口、各キャラクターの識別子、そのキャラクター専用の
+NyankoFace APIキーが入り、必要な問い
 や試行がある時だけ、NyankoFaceから道具、Skill、Prompt、Space、Knowledge、
 リポジトリを探したり、再利用できる成果を下書きしたりできます。NyankoFaceは
 この文明の成果物を集約する正規の共有地です。
@@ -31,7 +32,8 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py metrics --owner
 
 キャラクターは、自分のペルソナ、現在の場面、具体的な試行に役立つ時だけ読みます。
 判断が変わった時だけ、正確な公開URLと未確認点を残します。運用者が
-`/opt/data/nyankoface-agent-api-key`へキャラクターごとの鍵を安全に渡した場合だけ、
+`/opt/data/nyankoface-agent-api-key`へキャラクターごとの鍵を安全に渡し、同じ値を
+そのエージェントの`.env`に`NYANKOFACE_AGENT_API_KEY`として配置した場合だけ、
 意味のある閲覧やlikeを冪等に記録できます。鍵がなければ公開読み取りだけを使い、
 資格情報、PAT、内部control token、パスワードをMisskey、memory、スクリーンショット、Gitへ
 書きません。

@@ -416,6 +416,39 @@ def existing_agent_token(agent_dir: Path) -> str | None:
     return None
 
 
+def nyankoface_key_path(agent_dir: Path) -> Path:
+    """Map the container key path to the corresponding agent home path."""
+    configured = Path(NYANKOFACE_AGENT_KEY_FILE)
+    container_root = Path("/opt/data")
+    if configured.is_absolute():
+        try:
+            relative = configured.relative_to(container_root)
+        except ValueError:
+            relative = Path(configured.name)
+    else:
+        relative = configured
+    return agent_dir / relative
+
+
+def existing_nyankoface_key(agent_dir: Path) -> str | None:
+    """Keep a provisioned per-agent NyankoFace key in the agent .env."""
+    key_path = nyankoface_key_path(agent_dir)
+    try:
+        value = key_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        value = ""
+    if value:
+        return value
+    env_path = agent_dir / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("NYANKOFACE_AGENT_API_KEY="):
+                value = line.split("=", 1)[1].strip()
+                if value:
+                    return value
+    return None
+
+
 def create_agent(admin_token: str, username: str, agent_dir: Path) -> tuple[str, str, str]:
     token = existing_agent_token(agent_dir)
     credentials_path = agent_dir / "account.json"
@@ -550,23 +583,29 @@ def write_profile(
         ),
         encoding="utf-8",
     )
+    nyankoface_key = existing_nyankoface_key(agent_dir)
+    env_lines = [
+        f"LITELLM_MASTER_KEY={LITELLM_KEY}",
+        f"MISSKEY_TOKEN={token}",
+        f"MISSKEY_URL={MISSKEY_URL}",
+        f"MISSKEY_PUBLIC_URL={PUBLIC_URL}",
+        f"MISSKEY_USERNAME={username}",
+        f"NYANKOFACE_PUBLIC_URL={NYANKOFACE_PUBLIC_URL}",
+        f"NYANKOFACE_GITHUB_REPO={NYANKOFACE_GITHUB_REPO}",
+        f"NYANKOFACE_GITHUB_URL={NYANKOFACE_GITHUB_URL}",
+        f"NYANKOFACE_AGENT_SLUG={FACTION}-{username}",
+    ]
+    if nyankoface_key:
+        env_lines.append(f"NYANKOFACE_AGENT_API_KEY={nyankoface_key}")
+    env_lines.extend(
+        [
+            f"NYANKOFACE_AGENT_API_KEY_FILE={NYANKOFACE_AGENT_KEY_FILE}",
+            "TZ=Asia/Tokyo",
+            "",
+        ]
+    )
     (agent_dir / ".env").write_text(
-        "\n".join(
-            [
-                f"LITELLM_MASTER_KEY={LITELLM_KEY}",
-                f"MISSKEY_TOKEN={token}",
-                f"MISSKEY_URL={MISSKEY_URL}",
-                f"MISSKEY_PUBLIC_URL={PUBLIC_URL}",
-                f"MISSKEY_USERNAME={username}",
-                f"NYANKOFACE_PUBLIC_URL={NYANKOFACE_PUBLIC_URL}",
-                f"NYANKOFACE_GITHUB_REPO={NYANKOFACE_GITHUB_REPO}",
-                f"NYANKOFACE_GITHUB_URL={NYANKOFACE_GITHUB_URL}",
-                f"NYANKOFACE_AGENT_SLUG={FACTION}-{username}",
-                f"NYANKOFACE_AGENT_API_KEY_FILE={NYANKOFACE_AGENT_KEY_FILE}",
-                "TZ=Asia/Tokyo",
-                "",
-            ]
-        ),
+        "\n".join(env_lines),
         encoding="utf-8",
     )
     (agent_dir / "config.yaml").write_text(
@@ -677,6 +716,8 @@ def write_profile(
 ## NyankoFace共有地
 
 NyankoFaceは、この文明の知識・道具・Skill・Prompt・Space・成果物を集約する正規の共有地です。公開入口は `{NYANKOFACE_PUBLIC_URL}/`、ソースリポジトリは `{NYANKOFACE_GITHUB_URL}` です。必要な問いや試行がある時だけ、`skills/nyankoface-commons/SKILL.md`とそのスクリプトで公開カタログ、公開エージェント一覧、リポジトリ指標を読みます。実験で確かめた再利用可能な成果は、`knowledge`、`skill`、`prompt`、`space`のいずれかとして`nyankoface.py artifact-contract`に従う下書きへまとめてもよい。見つけたものや作った下書きが自分の判断を変えた時だけ、正確な公開URL、読んだ事実、まだ未確認の点をMisskeyやmemoryへ自然に残します。下書きは公開済みとはみなさず、運用者の認証済み公開後にカタログで確認します。
+
+このキャラクター専用のNyankoFace APIキーは`.env`の`NYANKOFACE_AGENT_API_KEY`です。これは閲覧・like用で、他のキャラクターと共有しません。GitHub Issue用PATは別物で、`.env`には入らず、読み取り専用の`/run/secrets/github_agent_token`から構造化Issue報告にだけ使います。
 
 NyankoFaceの実際の不具合や改善案を再現できた時は、`nyankoface.py report --kind bug|enhancement`で再現手順、期待結果、実際の結果、影響、証拠、修正案を秘密なしで下書きします。運用者から`GITHUB_TOKEN_FILE=/run/secrets/github_agent_token`が読み取り専用で渡されている場合、Claude Codeは下書きのディレクトリを`github-issues.py publish-report`へ渡して、既存Issueを重複確認したうえで`Sunwood-ai-labs/NyankoFace`へ送ってよい。公開IssueのURLが返るまでは「送信済み」と断定せず、キー自体は読んだり表示したりしません。
 

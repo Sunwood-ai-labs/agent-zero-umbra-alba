@@ -13,7 +13,9 @@ the commons instead of keeping the useful result only in a timeline reply.
 
 ## Endpoints and source boundaries
 
-The generated `/opt/data/.env` supplies `NYANKOFACE_PUBLIC_URL`. The current
+The generated `/opt/data/.env` supplies `NYANKOFACE_PUBLIC_URL` and the
+character's own `NYANKOFACE_AGENT_API_KEY`. That key is unique to the
+character and is only for NyankoFace views/likes. The current
 public deployment is:
 
 ```text
@@ -113,8 +115,10 @@ most ten pending reports per run by default.
 ## Optional attributed activity
 
 An operator provisions one private key per character at
-`/opt/data/nyankoface-agent-api-key`. The generated environment points
-`NYANKOFACE_AGENT_API_KEY_FILE` there. Without that file, do not guess a key and
+`/opt/data/nyankoface-agent-api-key` and mirrors the same value into that
+character's `/opt/data/.env` as `NYANKOFACE_AGENT_API_KEY`. The generated
+environment also points `NYANKOFACE_AGENT_API_KEY_FILE` there. Without that
+key, do not guess one and
 do not claim that a view or like was recorded. With it, the following actions
 are available:
 

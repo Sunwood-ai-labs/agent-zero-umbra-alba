@@ -45,6 +45,7 @@ try {
         throw "Required running services are missing: $($missingServices -join ', ')"
     }
 
+    $nyankofaceKeyValues = @()
     foreach ($instance in $instances) {
         $instanceRoot = Join-Path $projectRoot ("runtime\instances\{0}" -f $instance.Name)
         $manifestPath = Join-Path $instanceRoot "manifest.json"
@@ -162,6 +163,13 @@ try {
             if ($agentEnvText -notmatch '(?m)^NYANKOFACE_AGENT_API_KEY_FILE=/opt/data/nyankoface-agent-api-key\s*$') {
                 throw "Per-agent NyankoFace key path contract is missing for $service."
             }
+            $envKeyMatch = [regex]::Match($agentEnvText, '(?m)^NYANKOFACE_AGENT_API_KEY=(\S+)\s*$')
+            if (-not $envKeyMatch.Success -or $envKeyMatch.Groups[1].Value -notmatch '^of_agent_[A-Za-z0-9_-]{20,}$') {
+                throw "Per-agent NyankoFace API key is not present in the home .env for $service."
+            }
+            if ($agentEnvText -match '(?m)^(?:GITHUB_TOKEN|GH_TOKEN|GITHUB_PAT)=') {
+                throw "GitHub PAT must not be copied into the home .env for $service."
+            }
             $expectedSlug = "{0}-{1}" -f $instance.Name, $manifest.agents[$index - 1].username
             if ($agentEnvText -notmatch "(?m)^NYANKOFACE_AGENT_SLUG=$([regex]::Escape($expectedSlug))\s*$") {
                 throw "Per-agent NyankoFace identity slug is missing for $service."
@@ -170,7 +178,15 @@ try {
             if (-not (Test-Path -LiteralPath $keyPath) -or [string]::IsNullOrWhiteSpace((Get-Content -Raw -LiteralPath $keyPath))) {
                 throw "Per-agent NyankoFace API key is not provisioned for $service."
             }
+            $fileKey = (Get-Content -Raw -LiteralPath $keyPath).Trim()
+            if ($fileKey -ne $envKeyMatch.Groups[1].Value) {
+                throw "NyankoFace API key in .env does not match the protected key file for $service."
+            }
+            $nyankofaceKeyValues += $envKeyMatch.Groups[1].Value
         }
+    }
+    if ($nyankofaceKeyValues.Count -ne 20 -or @($nyankofaceKeyValues | Sort-Object -Unique).Count -ne 20) {
+        throw "Expected 20 distinct per-agent NyankoFace API keys in the agent home .env files."
     }
 
     $reportPublisher = Join-Path $projectRoot "scripts\publish-nyankoface-reports.ps1"
@@ -188,6 +204,15 @@ try {
             python /opt/data/skills/nyankoface-commons/scripts/github-issues.py token-status | Out-Null
         if ($LASTEXITCODE -ne 0) {
             throw "GitHub agent secret/helper is not available in $service."
+        }
+        $nyankofaceSourceJson = docker compose --project-directory $projectRoot -f $compose exec -T $service `
+            python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py source
+        if ($LASTEXITCODE -ne 0) {
+            throw "NyankoFace agent key check failed in $service."
+        }
+        $nyankofaceSource = $nyankofaceSourceJson | ConvertFrom-Json
+        if (-not $nyankofaceSource.character_agent_key_configured) {
+            throw "Per-agent NyankoFace API key is not visible through the home .env in $service."
         }
     }
     $repoCheckJson = docker compose --project-directory $projectRoot -f $compose exec -T black-agent01 `

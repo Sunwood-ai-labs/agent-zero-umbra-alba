@@ -42,6 +42,7 @@ SSH_TARGET = os.environ.get("NYANKOFACE_SSH_TARGET", "")
 AGENT_KEY_FILE = os.environ.get(
     "NYANKOFACE_AGENT_API_KEY_FILE", "/opt/data/nyankoface-agent-api-key"
 )
+AGENT_KEY = os.environ.get("NYANKOFACE_AGENT_API_KEY", "").strip()
 AGENT_SLUG = os.environ.get("NYANKOFACE_AGENT_SLUG", "character")
 OUTBOX_DIR = Path(
     os.environ.get("NYANKOFACE_OUTBOX_DIR", "/opt/data/nyankoface-outbox")
@@ -97,6 +98,8 @@ def compact_repository(item: object) -> dict[str, object]:
 
 
 def read_agent_key() -> str:
+    if AGENT_KEY:
+        return AGENT_KEY
     try:
         value = Path(AGENT_KEY_FILE).read_text(encoding="utf-8").strip()
     except OSError:
@@ -109,6 +112,8 @@ def read_agent_key() -> str:
 
 
 def agent_key_configured() -> bool:
+    if AGENT_KEY:
+        return True
     try:
         return bool(Path(AGENT_KEY_FILE).read_text(encoding="utf-8").strip())
     except OSError:

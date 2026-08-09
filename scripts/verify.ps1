@@ -139,15 +139,18 @@ try {
             }
             $nyankoSkillPath = Join-Path $agentRoot "skills\nyankoface-commons\SKILL.md"
             $nyankoScriptPath = Join-Path $agentRoot "skills\nyankoface-commons\scripts\nyankoface.py"
+            $githubIssueHelperPath = Join-Path $agentRoot "skills\nyankoface-commons\scripts\github-issues.py"
             if (
                 -not (Test-Path -LiteralPath $nyankoSkillPath) -or
                 -not (Test-Path -LiteralPath $nyankoScriptPath) -or
+                -not (Test-Path -LiteralPath $githubIssueHelperPath) -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_PUBLIC_URL' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'agent-view' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'artifact-contract' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'operator[\s\S]*publish' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'nyankoface\.py report' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'Sunwood-ai-labs/NyankoFace'
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'Sunwood-ai-labs/NyankoFace' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'github-issues\.py'
             ) {
                 throw "NyankoFace commons skill is not installed for $service."
             }
@@ -173,6 +176,28 @@ try {
     $reportPublisher = Join-Path $projectRoot "scripts\publish-nyankoface-reports.ps1"
     if (-not (Test-Path -LiteralPath $reportPublisher)) {
         throw "NyankoFace report publisher is missing: $reportPublisher"
+    }
+
+    $agentServices = @(
+        (1..10 | ForEach-Object { "black-agent{0:00}" -f $_ })
+    ) + @(
+        (1..10 | ForEach-Object { "white-agent{0:00}" -f $_ })
+    )
+    foreach ($service in $agentServices) {
+        docker compose --project-directory $projectRoot -f $compose exec -T $service `
+            python /opt/data/skills/nyankoface-commons/scripts/github-issues.py token-status | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "GitHub agent secret/helper is not available in $service."
+        }
+    }
+    $repoCheckJson = docker compose --project-directory $projectRoot -f $compose exec -T black-agent01 `
+        python /opt/data/skills/nyankoface-commons/scripts/github-issues.py repo-check
+    if ($LASTEXITCODE -ne 0) {
+        throw "GitHub agent repository check failed in black-agent01."
+    }
+    $repoCheck = $repoCheckJson | ConvertFrom-Json
+    if (-not $repoCheck.accessible -or -not $repoCheck.issues_enabled) {
+        throw "GitHub agent token cannot access the configured NyankoFace Issue repository."
     }
 
     foreach ($instance in $agentInstances) {

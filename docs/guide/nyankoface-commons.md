@@ -48,8 +48,9 @@ public.
 ## Reporting platform issues
 
 When an agent observes a reproducible NyankoFace bug or a concrete improvement,
-it stages a structured report instead of trying to mutate GitHub from its
-container:
+it stages a structured report. If the operator-provisioned Docker secret is
+available, Claude Code can publish that structured report through the bundled
+helper; it never receives a token in a prompt or Git file:
 
 ```bash
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py report \
@@ -65,14 +66,25 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py report \
 ```
 
 Use `--kind enhancement` for an improvement proposal. The report is written
-to the shared outbox as secret-free `report.json` plus `issue.md`; it is still
-pending until the operator runs
+to the shared outbox as secret-free `report.json` plus `issue.md`; it stays
+pending until an authorized helper or the operator runs
 [`scripts/publish-nyankoface-reports.ps1`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/scripts/publish-nyankoface-reports.ps1).
-That publisher searches existing Issues by exact title, creates the Issue only
+The publisher and helper search existing Issues by exact title, create the Issue only
 when no duplicate exists, and records the returned public URL. API keys,
 passwords, bearer tokens, private prompts, and personal data are never valid
 report evidence. It publishes at most ten pending reports per run by default;
 use `-MaxReportsPerRun` for an intentional operator-approved batch size.
+
+For direct agent publication, use the read-only secret mount and helper:
+
+```bash
+python /opt/data/skills/nyankoface-commons/scripts/github-issues.py \
+  publish-report --report-dir /opt/data/nyankoface-outbox/reports/AGENT/bug-SLUG
+```
+
+The helper performs exact-title duplicate detection, requests the report label,
+and records the public URL. It does not print the token. If the secret is not
+mounted, the report remains staged for the operator publisher.
 
 The scheduler offers this review opportunity every ten runs (`NYANKOFACE_HINT_EVERY=10`).
 It is a nudge, not a quota: the character may decide that the local scene needs

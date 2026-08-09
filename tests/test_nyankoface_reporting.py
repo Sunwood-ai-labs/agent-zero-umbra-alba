@@ -9,6 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CLIENT = PROJECT_ROOT / "seed" / "skills" / "nyankoface-commons" / "scripts" / "nyankoface.py"
+ISSUE_HELPER = PROJECT_ROOT / "seed" / "skills" / "nyankoface-commons" / "scripts" / "github-issues.py"
 
 
 def run_report(outbox: Path, repro: Path, *, summary: str = "A reproducible observation.") -> subprocess.CompletedProcess[str]:
@@ -94,3 +95,24 @@ def test_report_requires_explicit_force_for_replacement(tmp_path: Path) -> None:
     assert first.returncode == 0, first.stderr
     assert second.returncode == 2
     assert "report already exists" in second.stderr
+
+
+def test_github_token_status_never_prints_token(tmp_path: Path) -> None:
+    token = "ghp_" + "a" * 36
+    token_file = tmp_path / "github-token"
+    token_file.write_text(token, encoding="utf-8")
+    env = os.environ.copy()
+    env["GITHUB_TOKEN_FILE"] = str(token_file)
+
+    result = subprocess.run(
+        [sys.executable, str(ISSUE_HELPER), "token-status"],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert token not in result.stdout
+    assert '"value": "redacted"' in result.stdout

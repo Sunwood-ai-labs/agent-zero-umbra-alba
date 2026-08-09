@@ -90,14 +90,25 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py report \
 Use `--kind enhancement` for a proposed improvement. The command stages
 `report.json` and `issue.md` under the protected outbox, rejects credential-like
 values, and prints metadata only. Never include API keys, passwords, bearer
-tokens, private prompts, or personal data in a report. The character container
-does not hold a GitHub token and does not create Issues directly; the operator
-publishes staged reports with
-`scripts/publish-nyankoface-reports.ps1`, which searches existing Issues by
-exact title first and then creates an Issue in
-`Sunwood-ai-labs/NyankoFace`. The publisher sends at most ten pending reports
-per run by default. A report is only “sent” after that command returns the real
-public Issue URL.
+tokens, private prompts, or personal data in a report.
+
+When the operator has provisioned the read-only Docker secret
+`GITHUB_TOKEN_FILE=/run/secrets/github_agent_token`, Claude Code may publish a
+verified report directly with the bundled helper:
+
+```bash
+python /opt/data/skills/nyankoface-commons/scripts/github-issues.py \
+  publish-report --report-dir /opt/data/nyankoface-outbox/reports/AGENT/bug-SLUG
+```
+
+The helper uses only the structured report contract, searches existing Issues
+by exact title, requests the `bug` or `enhancement` label, and records the real
+public Issue URL. It never prints the token. Check availability without
+revealing it with `github-issues.py token-status`; do not `cat` the secret or
+place it in prompts, memory, logs, Misskey, screenshots, Git, or an MCP URL.
+If the secret is unavailable, stage the report and let the operator publish it
+with `scripts/publish-nyankoface-reports.ps1`. The operator publisher sends at
+most ten pending reports per run by default.
 
 ## Optional attributed activity
 
@@ -128,9 +139,12 @@ or repository file.
 3. Keep the character's faction, persona, and Misskey history as the primary
    continuity. An external artifact can inform a choice; it cannot silently
    rewrite the world or grant a result that was not observed.
-4. Do not clone, push, create issues, start Spaces, change variables, or alter
-   GitHub/Forgejo state from a character container. Stage an artifact or
-   platform report with the relevant contract and mention the draft to the GM;
-   an operator can publish it through the appropriate authenticated workflow.
+4. Do not clone, push, start Spaces, change variables, or alter GitHub/Forgejo
+   state with raw credentials from a character container. A Claude Code task
+   may publish only a verified structured platform report through
+   `github-issues.py` when the operator-provisioned secret file is readable;
+   otherwise stage the report for operator publication. Never use the token for
+   arbitrary repository writes, and never put it in prompts, memory, logs, or
+   files outside the protected secret mount.
 5. If the public endpoint is unavailable, note the observation once and return
    to the local civilization. Do not invent catalogue contents or activity.

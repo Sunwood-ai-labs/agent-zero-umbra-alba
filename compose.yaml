@@ -1,5 +1,9 @@
 name: agent-zero-umbra-alba
 
+secrets:
+  github_agent_token:
+    file: ${GITHUB_AGENT_TOKEN_FILE:-../.menv/github-agent-token}
+
 x-db: &db
   image: postgres:18-alpine
   restart: unless-stopped
@@ -32,6 +36,10 @@ x-agent: &agent
     API_SERVER_HOST: "0.0.0.0"
     API_SERVER_PORT: "8642"
     API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
+    GITHUB_TOKEN_FILE: /run/secrets/github_agent_token
+    GITHUB_ISSUE_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
+  secrets:
+    - github_agent_token
 
 services:
   world-db:

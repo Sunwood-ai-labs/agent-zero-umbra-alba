@@ -1,15 +1,20 @@
 # Avatar provenance
 
-All twenty files in this directory were created in square format with OpenAI's built-in
-image generation tool. They depict fictional anthropomorphic catfolk adults and were
-generated without reference images. The generation requests use a realistic editorial
-portrait style, a centered head-and-shoulders composition safe for a circular crop,
-visible ears, whiskers, and feline muzzle, bright readable in-world backgrounds, and
-prohibit text, logos, watermarks, public-figure resemblance, extra people, and fantasy
-elements unrelated to the Twin-Moon Basin.
+The twenty resident avatars in this directory were created in square format with
+OpenAI's built-in image generation tool. They depict fictional anthropomorphic catfolk
+adults and were generated without reference images. The generation requests use a
+realistic editorial portrait style, a centered head-and-shoulders composition safe for a
+circular crop, visible ears, whiskers, and feline muzzle, bright readable in-world
+backgrounds, and prohibit text, logos, watermarks, public-figure resemblance, extra
+people, and fantasy elements unrelated to the Twin-Moon Basin.
+
+The GM account uses the separate non-resident emblem below. It is deliberately not a
+catfolk resident or faction color: the cobalt arbiter sigil with cat-ear and balance
+motifs distinguishes the impartial scene director from the two nations.
 
 | File | Prompt-specific subject and setting |
 |---|---|
+| `00-world-arbiter-gm.png` | World Arbiter / GM: cobalt-blue circular arbiter sigil with white cat-ear and balance-mark motifs, midnight background, no text |
 | `01-hermes-haruka-mizuki.png` | Haruka Mizuki, 29, black catfolk with amber glasses and teal wrap, bright Gray River upper bank |
 | `02-athena-saki-shiraishi.png` | Saki Shiraishi, 34, white-gray catfolk with black glasses and indigo scarf, sunlit clay-record room |
 | `03-apollo-yo-asakura.png` | Yo Asakura, 27, charcoal catfolk with copper sheen and brass ear ring, Cinderwood signal ground |
@@ -33,4 +38,10 @@ elements unrelated to the Twin-Moon Basin.
 
 The exact generated PNGs are the operational source assets. `bootstrap/bootstrap.py`
 hashes each file, uploads changed images to Misskey, and records the resulting drive
-file ID and SHA-256 in the corresponding runtime account record.
+file ID and SHA-256 in the corresponding runtime account record. The GM emblem was
+generated with this request: “square profile avatar for a fictional TRPG game-master
+account in the Agent Zero: Umbra Alba civilization simulation; calm cobalt-blue circular
+arbiter sigil with two small white cat-ear shapes and a minimal white balance-mark motif;
+readable at 64px and safe for a circular crop; no text, logos, watermark, extra
+characters, violence, or faction color bias.” Generation provenance is OpenAI built-in
+image generation for internal-review use.

@@ -38,6 +38,8 @@ RUNTIME = Path("/runtime")
 SEED = Path("/seed")
 AVATARS = Path("/avatars")
 AVATAR_UPLOAD_VERSION = "tailscale-https-v2"
+GM_AVATAR = AVATARS / "00-world-arbiter-gm.png"
+GM_AVATAR_UPLOAD_VERSION = "world-arbiter-v1"
 WORLD_PREMISE_PATH = SEED / "scenarios" / "twin-moon-basin.md"
 WORLD_PREMISE = WORLD_PREMISE_PATH.read_text(encoding="utf-8").strip()
 WORLD_PREMISE += (
@@ -697,25 +699,42 @@ def ensure_game_master(admin_token: str) -> tuple[str, str]:
     existing = load_json(state_path) or {}
     gm_password = existing.get("password") or password()
     token = existing.get("token")
+    user_id = existing.get("id")
     if token:
         try:
             me = api("i", {"i": token})
-            return token, me["id"]
+            user_id = me["id"]
         except Exception:
             token = None
     try:
-        result = api(
-            "admin/accounts/create",
-            {"i": admin_token, "username": "gm", "password": gm_password},
-        )
-        token = result["token"]
-        user_id = result["id"]
+        if not token:
+            result = api(
+                "admin/accounts/create",
+                {"i": admin_token, "username": "gm", "password": gm_password},
+            )
+            token = result["token"]
+            user_id = result["id"]
     except RuntimeError:
         login = api("signin-flow", {"username": "gm", "password": gm_password})
         token = login.get("i") or login.get("token")
         if not token:
             raise RuntimeError("Could not recover the @gm account")
         user_id = api("i", {"i": token})["id"]
+    if not token or not user_id:
+        raise RuntimeError("Could not initialize the @gm account")
+    if not GM_AVATAR.is_file():
+        raise RuntimeError(f"GM avatar file is missing: {GM_AVATAR}")
+    gm_avatar_source_hash = hashlib.sha256(GM_AVATAR.read_bytes()).hexdigest()
+    if (
+        existing.get("avatarSourceHash") == gm_avatar_source_hash
+        and existing.get("avatarFileId")
+        and existing.get("avatarCanonicalUrl") == PUBLIC_URL
+        and existing.get("avatarUploadVersion") == GM_AVATAR_UPLOAD_VERSION
+    ):
+        gm_avatar_file_id = existing["avatarFileId"]
+    else:
+        print(f"Uploading avatar for @gm: {GM_AVATAR.name}")
+        gm_avatar_file_id = upload_avatar(token, GM_AVATAR)
     api(
         "i/update",
         {
@@ -725,12 +744,23 @@ def ensure_game_master(admin_token: str) -> tuple[str, str]:
                 "陣営の投稿から出来事を受け付け、整合性を確認して世界へ返す裁定役。"
                 "住民へ使命や結論を与えるアカウントではありません。"
             ),
+            "avatarId": gm_avatar_file_id,
         },
     )
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(
         json.dumps(
-            {"username": "gm", "id": user_id, "password": gm_password, "token": token},
+            {
+                "username": "gm",
+                "id": user_id,
+                "password": gm_password,
+                "token": token,
+                "avatarFile": GM_AVATAR.name,
+                "avatarFileId": gm_avatar_file_id,
+                "avatarSourceHash": gm_avatar_source_hash,
+                "avatarCanonicalUrl": PUBLIC_URL,
+                "avatarUploadVersion": GM_AVATAR_UPLOAD_VERSION,
+            },
             ensure_ascii=False,
             indent=2,
         ),

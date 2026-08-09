@@ -15,6 +15,18 @@ $agentInstances = @($instances | Where-Object ExpectedAgents -gt 0)
 $premisePath = Join-Path $projectRoot "seed\scenarios\twin-moon-basin.md"
 $premiseText = ((Get-Content -Raw -LiteralPath $premisePath) -replace "`r`n", "`n" -replace "`r", "`n").Trim()
 $competitionHeading = "## 競争ゲームの地平"
+$mapContractPath = Join-Path $projectRoot "seed\scenarios\twin-moon-basin-map.md"
+$mapSvgPath = Join-Path $projectRoot "assets\maps\twin-moon-basin-map.svg"
+$mapPngPath = Join-Path $projectRoot "assets\maps\twin-moon-basin-map.png"
+if (-not (Test-Path -LiteralPath $mapContractPath) -or -not (Test-Path -LiteralPath $mapSvgPath) -or -not (Test-Path -LiteralPath $mapPngPath)) {
+    throw "World map contract or source assets are missing."
+}
+try {
+    [xml](Get-Content -Raw -LiteralPath $mapSvgPath) | Out-Null
+}
+catch {
+    throw "World map SVG is not valid XML: $mapSvgPath"
+}
 $sha256 = [System.Security.Cryptography.SHA256]::Create()
 
 try {
@@ -91,6 +103,9 @@ try {
             if ($worldText -ne $fullPremise) {
                 throw "Faction-scoped world premise differs for $service."
             }
+            if ($worldText -notmatch '暫定地図の扱い') {
+                throw "World map guidance is missing for $service."
+            }
             $soulPath = Join-Path $agentRoot "SOUL.md"
             $soulText = Get-Content -Raw -LiteralPath $soulPath
             if ($soulText -notmatch [regex]::Escape($competitionHeading) -or $soulText -notmatch '競争提案') {
@@ -163,7 +178,7 @@ try {
         }
     }
 
-    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise, autonomous competition guidance and evidence board, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
+    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise and RPG map contract, autonomous competition guidance and evidence board, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
     $scheduleSummary | ForEach-Object { Write-Host $_ }
 }
 finally {

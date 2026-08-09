@@ -157,6 +157,7 @@ CI also compiles the Python sources, validates Compose, and builds the complete 
 - [Getting started](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/guide/getting-started)
 - [Architecture](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/guide/architecture)
 - [Personas](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/guide/personas)
+- [World map](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/guide/world-map)
 - [Civilization experiment](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/guide/civilization-experiment)
 - [Operations](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/guide/operations)
 - [Project history](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/guide/project-history)

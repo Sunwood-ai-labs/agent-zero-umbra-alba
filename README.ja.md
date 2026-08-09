@@ -157,6 +157,7 @@ CIはPythonソース、Compose、日英VitePressサイト全体も検証しま�
 - [はじめる](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/ja/guide/getting-started)
 - [アーキテクチャ](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/ja/guide/architecture)
 - [登場人物](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/ja/guide/personas)
+- [世界地図](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/ja/guide/world-map)
 - [文明実験](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/ja/guide/civilization-experiment)
 - [運用](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/ja/guide/operations)
 - [構築の記録](https://sunwood-ai-labs.github.io/agent-zero-umbra-alba/ja/guide/project-history)

@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1536 1024" role="img" aria-labelledby="map-title map-desc">
+  <title id="map-title">双月盆地 / Twin-Moon Basin RPG map</title>
+  <desc id="map-desc">A top-down survey map of the Twin-Moon Basin. The central river, Twin-Moon Gate, Gray River Crossing, and Observatory Tower are established landmarks. Persona locations are provisional markers that can be revised by in-world observation.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#25190f" flood-opacity="0.42"/>
+    </filter>
+    <style>
+      .title { font: 700 28px 'Yu Gothic UI', 'Noto Sans JP', sans-serif; letter-spacing: 0.08em; fill: #2b1b12; }
+      .subtitle { font: 600 12px 'Yu Gothic UI', 'Noto Sans JP', sans-serif; letter-spacing: 0.16em; fill: #5e4634; }
+      .panel { fill: #f8e9c5; fill-opacity: 0.92; stroke: #4d3625; stroke-width: 2; }
+      .panel-dark { fill: #2a241e; fill-opacity: 0.86; stroke: #f1d79e; stroke-width: 1.5; }
+      .confirmed { fill: #f8e9c5; stroke: #2a1c14; stroke-width: 2; }
+      .tentative { fill: #2a241e; fill-opacity: 0.86; stroke: #f2d48e; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .label { font: 700 16px 'Yu Gothic UI', 'Noto Sans JP', sans-serif; fill: #291c14; }
+      .label-small { font: 600 13px 'Yu Gothic UI', 'Noto Sans JP', sans-serif; fill: #f9e9c1; }
+      .label-dark { font: 700 15px 'Yu Gothic UI', 'Noto Sans JP', sans-serif; fill: #2b1b12; }
+      .note { font: 500 12px 'Yu Gothic UI', 'Noto Sans JP', sans-serif; fill: #4d3625; }
+      .note-light { font: 500 12px 'Yu Gothic UI', 'Noto Sans JP', sans-serif; fill: #f9e9c1; }
+      .leader { fill: none; stroke: #2a1c14; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 4 5; opacity: 0.82; }
+      .pin-confirmed { fill: #f8e9c5; stroke: #261910; stroke-width: 3; }
+      .pin-tentative { fill: #2a241e; stroke: #f2d48e; stroke-width: 2; }
+      .pin-letter { font: 800 12px 'Yu Gothic UI', sans-serif; fill: #2a1c14; text-anchor: middle; dominant-baseline: central; }
+    </style>
+  </defs>
+
+  <image x="0" y="0" width="1536" height="1024" preserveAspectRatio="xMidYMid slice" href="twin-moon-basin-map.png" xlink:href="twin-moon-basin-map.png"/>
+  <rect x="0" y="0" width="1536" height="1024" fill="#2c1d12" fill-opacity="0.06"/>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="42" y="34" width="440" height="86" rx="12"/>
+    <text class="title" x="64" y="70">双月盆地</text>
+    <text class="subtitle" x="66" y="96">TWIN-MOON BASIN · FIELD MAP / SURVEY DRAFT</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="1030" y="34" width="456" height="126" rx="12"/>
+    <text class="label-dark" x="1052" y="62">地図の読み方 / MAP KEY</text>
+    <circle class="pin-confirmed" cx="1062" cy="88" r="8"/>
+    <text class="note" x="1080" y="93">確定した地形・GMが裁定した地点</text>
+    <circle class="pin-tentative" cx="1062" cy="117" r="8"/>
+    <text class="note" x="1080" y="122">人物設定由来の暫定位置（要観測）</text>
+    <text class="note" x="1052" y="146">方位・河流の向き・細かな拠点は変更され得ます。</text>
+  </g>
+
+  <g transform="translate(1460 188)" filter="url(#shadow)">
+    <circle class="panel" cx="0" cy="0" r="31"/>
+    <path d="M0,-22 L-8,7 L0,2 L8,7 Z" fill="#2a1c14"/>
+    <text class="label-dark" x="0" y="48" text-anchor="middle">N</text>
+  </g>
+
+  <!-- Confirmed landmarks -->
+  <g>
+    <path class="leader" d="M680 358 C632 332 590 302 548 274"/>
+    <circle class="pin-confirmed" cx="680" cy="358" r="11" filter="url(#shadow)"/>
+    <rect class="confirmed" x="430" y="236" width="245" height="52" rx="9" filter="url(#shadow)"/>
+    <text class="label" x="449" y="260">観測塔</text>
+    <text class="note" x="449" y="278">中央の黒白信号塔</text>
+
+    <path class="leader" d="M760 548 C744 569 729 583 708 595"/>
+    <circle class="pin-confirmed" cx="760" cy="548" r="12" filter="url(#shadow)"/>
+    <text class="pin-letter" x="760" y="548">門</text>
+    <rect class="confirmed" x="538" y="588" width="210" height="52" rx="9" filter="url(#shadow)"/>
+    <text class="label" x="558" y="612">双月門</text>
+    <text class="note" x="558" y="630">主要水路を分ける水門</text>
+
+    <path class="leader" d="M837 641 C878 646 916 652 948 662"/>
+    <circle class="pin-confirmed" cx="837" cy="641" r="11" filter="url(#shadow)"/>
+    <text class="pin-letter" x="837" y="641">橋</text>
+    <rect class="confirmed" x="950" y="645" width="225" height="52" rx="9" filter="url(#shadow)"/>
+    <text class="label" x="970" y="669">灰河渡し</text>
+    <text class="note" x="970" y="687">崩れた橋・渡河候補</text>
+  </g>
+
+  <text x="800" y="438" transform="rotate(82 800 438)" class="label-dark" opacity="0.8">灰河 / ASH RIVER</text>
+
+  <!-- Provisional east / black locations -->
+  <g>
+    <rect class="tentative" x="822" y="166" width="150" height="32" rx="8"/><text class="label-small" x="840" y="188">灰河上流（暫定）</text>
+    <rect class="tentative" x="1005" y="230" width="112" height="32" rx="8"/><text class="label-small" x="1026" y="252">煤森</text>
+    <rect class="tentative" x="1190" y="226" width="116" height="32" rx="8"/><text class="label-small" x="1209" y="248">嵐見台</text>
+    <rect class="tentative" x="1044" y="405" width="145" height="32" rx="8"/><text class="label-small" x="1062" y="427">黒曜炉跡</text>
+    <rect class="tentative" x="1190" y="515" width="140" height="32" rx="8"/><text class="label-small" x="1206" y="537">二つ岩の道</text>
+    <rect class="tentative" x="1005" y="700" width="130" height="32" rx="8"/><text class="label-small" x="1023" y="722">根張り畑</text>
+    <rect class="tentative" x="1135" y="820" width="132" height="32" rx="8"/><text class="label-small" x="1153" y="842">種影の林</text>
+    <rect class="tentative" x="788" y="858" width="180" height="32" rx="8"/><text class="label-small" x="805" y="880">灰河下流の火床</text>
+  </g>
+
+  <!-- Provisional west / white locations -->
+  <g>
+    <rect class="tentative" x="208" y="208" width="170" height="32" rx="8"/><text class="label-small" x="227" y="230">白砂の段丘</text>
+    <rect class="tentative" x="404" y="152" width="132" height="32" rx="8"/><text class="label-small" x="423" y="174">影時計台</text>
+    <rect class="tentative" x="356" y="430" width="145" height="32" rx="8"/><text class="label-small" x="374" y="452">白土の窯場</text>
+    <rect class="tentative" x="194" y="552" width="130" height="32" rx="8"/><text class="label-small" x="213" y="574">粘土の谷</text>
+    <rect class="tentative" x="350" y="720" width="116" height="32" rx="8"/><text class="label-small" x="370" y="742">高草原</text>
+    <rect class="tentative" x="268" y="785" width="170" height="32" rx="8"/><text class="label-small" x="287" y="807">白土記憶庫跡</text>
+    <rect class="tentative" x="370" y="864" width="170" height="32" rx="8"/><text class="label-small" x="388" y="886">白草の集会地</text>
+    <rect class="tentative" x="852" y="672" width="180" height="32" rx="8"/><text class="label-small" x="870" y="694">渡しの見張り台</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel-dark" x="48" y="930" width="340" height="58" rx="10"/>
+    <text class="label-small" x="68" y="956">白猫側 / ALBA · WEST</text>
+    <text class="note-light" x="68" y="976">粘土層・白砂・草地（共有前提）</text>
+    <rect class="panel-dark" x="1148" y="930" width="340" height="58" rx="10"/>
+    <text class="label-small" x="1168" y="956">黒猫側 / UMBRA · EAST</text>
+    <text class="note-light" x="1168" y="976">針葉樹林・黒い火成岩（共有前提）</text>
+  </g>
+
+  <g>
+    <rect class="panel" x="480" y="946" width="575" height="44" rx="10" opacity="0.94"/>
+    <text class="note" x="505" y="973">確定: 盆地・灰河・双月門・灰河渡し・観測塔　｜　暫定: 細かな拠点・方位・流向</text>
+  </g>
+</svg>

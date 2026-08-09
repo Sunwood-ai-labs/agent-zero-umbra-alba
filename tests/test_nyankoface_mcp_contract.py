@@ -96,5 +96,6 @@ def test_compose_loads_mcp_token_from_a_separate_file() -> None:
     compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
     assert "NYANKOFACE_MCP_TOKEN_FILE: /opt/data/nyankoface-mcp-token" in compose
     assert "NYANKOFACE_MCP_TOKEN=\"$$(cat" in compose
+    assert "exec /opt/hermes/bin/hermes gateway run" in compose
     assert "Forgejo fallback remains available" in compose
     assert "NYANKOFACE_FORGEJO_TOKEN_FILE" in compose

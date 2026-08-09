@@ -54,7 +54,7 @@ SECRET_SHAPES = re.compile(
 )
 REPORT_SECRET_VALUES = re.compile(
     r"(?ix)"
-    r"(?:\b(?:api[_-]?key|password|access[_-]?token|secret|private[_-]?key)\s*[:=]\s*\S+)"
+    r"(?:\b(?:api[_-]?key|password|access[_-]?token|token|credential|authorization|secret|private[_-]?key)\s*[:=]\s*\S+)"
     r"|(?:\bbearer\s+[A-Za-z0-9._-]{20,})"
     r"|(?:\b(?:gh[pousr]_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9_./-]{16,})"
     r"|(?:-----BEGIN\s+[A-Z ]*PRIVATE KEY-----)"

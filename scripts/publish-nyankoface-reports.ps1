@@ -56,7 +56,7 @@ function Assert-SecretFree {
         [Parameter(Mandatory = $true)][string[]]$Values,
         [Parameter(Mandatory = $true)][string]$Context
     )
-    $secretPattern = '(?ix)(?:\b(?:api[_-]?key|password|access[_-]?token|secret|private[_-]?key)\s*[:=]\s*\S+)|(?:\bbearer\s+[A-Za-z0-9._-]{20,})|(?:\b(?:gh[pousr]_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9_./-]{16,})|(?:-----BEGIN\s+[A-Z ]*PRIVATE KEY-----)|(?:https?://[^\s/@:]+:[^\s/@]+@)'
+    $secretPattern = '(?ix)(?:\b(?:api[_-]?key|password|access[_-]?token|token|credential|authorization|secret|private[_-]?key)\s*[:=]\s*\S+)|(?:\bbearer\s+[A-Za-z0-9._-]{20,})|(?:\b(?:gh[pousr]_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9_./-]{16,})|(?:-----BEGIN\s+[A-Z ]*PRIVATE KEY-----)|(?:https?://[^\s/@:]+:[^\s/@]+@)'
     foreach ($value in $Values) {
         if ($value -match $secretPattern) {
             throw "$Context resembles a credential; remove secrets before publication."

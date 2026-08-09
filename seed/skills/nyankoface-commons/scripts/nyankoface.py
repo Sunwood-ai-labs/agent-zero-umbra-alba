@@ -45,6 +45,10 @@ FORGEJO_TOKEN_FILE = os.environ.get(
 FORGEJO_TOKEN = os.environ.get("NYANKOFACE_FORGEJO_TOKEN", "").strip()
 FORGEJO_USER = os.environ.get("NYANKOFACE_FORGEJO_USER", "").strip()
 MCP_URL = os.environ.get("NYANKOFACE_MCP_URL", f"{BASE_URL}/mcp").rstrip("/")
+MCP_TOKEN_FILE = os.environ.get(
+    "NYANKOFACE_MCP_TOKEN_FILE", "/opt/data/nyankoface-mcp-token"
+)
+MCP_PROTOCOL_VERSION = "2025-06-18"
 GITHUB_REPO = os.environ.get("NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFace")
 GITHUB_URL = os.environ.get(
     "NYANKOFACE_GITHUB_URL", f"https://github.com/{GITHUB_REPO}"
@@ -146,6 +150,178 @@ def forgejo_token_available() -> bool:
         return False
 
 
+def read_mcp_token() -> str:
+    """Read the dedicated MCP bearer token without ever printing it."""
+    try:
+        token = Path(MCP_TOKEN_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        token = ""
+    if not token:
+        raise RuntimeError(
+            "No NyankoFace MCP client token is provisioned; Forgejo fallback remains available."
+        )
+    return token
+
+
+def mcp_token_available() -> bool:
+    try:
+        return bool(Path(MCP_TOKEN_FILE).read_text(encoding="utf-8").strip())
+    except OSError:
+        return False
+
+
+def _decode_mcp_payload(body: bytes, content_type: str) -> dict[str, object]:
+    if not body:
+        return {}
+    text = body.decode("utf-8", errors="replace")
+    if "application/json" in content_type:
+        payload = json.loads(text)
+        if not isinstance(payload, dict):
+            raise RuntimeError("NyankoFace MCP returned a non-object response")
+        return payload
+    for line in text.splitlines():
+        if not line.startswith("data:"):
+            continue
+        data = line.split(":", 1)[1].strip()
+        if not data or data == "[DONE]":
+            continue
+        payload = json.loads(data)
+        if not isinstance(payload, dict):
+            raise RuntimeError("NyankoFace MCP returned a non-object response")
+        return payload
+    raise RuntimeError("NyankoFace MCP returned no JSON-RPC response")
+
+
+def mcp_request(
+    token: str,
+    method: str,
+    *,
+    request_id: int | None = None,
+    params: dict[str, object] | None = None,
+) -> tuple[int, str, dict[str, object]]:
+    message: dict[str, object] = {"jsonrpc": "2.0", "method": method}
+    if request_id is not None:
+        message["id"] = request_id
+    if params is not None:
+        message["params"] = params
+    request = urllib.request.Request(
+        MCP_URL,
+        data=json.dumps(message, ensure_ascii=False).encode("utf-8"),
+        headers={
+            "Accept": "application/json, text/event-stream",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "User-Agent": "agent-zero-nyankoface-mcp-check/1",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            body = response.read()
+            content_type = response.headers.get("Content-Type", "")
+            return response.status, content_type, _decode_mcp_payload(body, content_type)
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"NyankoFace MCP HTTP {exc.code}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"NyankoFace MCP unavailable: {exc.reason}") from exc
+
+
+def mcp_check(_: argparse.Namespace) -> None:
+    summary: dict[str, object] = {
+        "mcp_url": MCP_URL,
+        "mcp_token_file": MCP_TOKEN_FILE,
+        "mcp_client_token_configured": mcp_token_available(),
+        "secret_exposed": False,
+    }
+    if not summary["mcp_client_token_configured"]:
+        summary.update(
+            {
+                "ok": False,
+                "error": "MCP client token is missing; Forgejo fallback remains available",
+            }
+        )
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        raise SystemExit(2)
+
+    token = read_mcp_token()
+    try:
+        initialize_status, initialize_type, initialize = mcp_request(
+            token,
+            "initialize",
+            request_id=1,
+            params={
+                "protocolVersion": MCP_PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "agent-zero-mcp-check", "version": "1"},
+            },
+        )
+        initialized_status, _, _ = mcp_request(token, "notifications/initialized")
+        tools_status, _, tools = mcp_request(token, "tools/list", request_id=2, params={})
+        resources_status, _, resources = mcp_request(token, "resources/list", request_id=3, params={})
+    except RuntimeError as exc:
+        summary.update({"ok": False, "error": str(exc)})
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        raise SystemExit(2) from exc
+
+    initialize_result = initialize.get("result") if isinstance(initialize, dict) else {}
+    tools_result = tools.get("result") if isinstance(tools, dict) else {}
+    resources_result = resources.get("result") if isinstance(resources, dict) else {}
+    initialize_protocol = (
+        initialize_result.get("protocolVersion")
+        if isinstance(initialize_result, dict)
+        else None
+    )
+    initialize_ok = (
+        initialize_status == 200
+        and isinstance(initialize_result, dict)
+        and not initialize.get("error")
+        and initialize_protocol == MCP_PROTOCOL_VERSION
+    )
+    tools_ok = (
+        tools_status == 200
+        and isinstance(tools_result, dict)
+        and not tools.get("error")
+        and isinstance(tools_result.get("tools"), list)
+    )
+    resources_ok = (
+        resources_status == 200
+        and isinstance(resources_result, dict)
+        and not resources.get("error")
+        and isinstance(resources_result.get("resources"), list)
+    )
+    summary.update(
+        {
+            "ok": initialize_ok
+            and initialized_status in {200, 202}
+            and tools_ok
+            and resources_ok,
+            "initialize": {
+                "status": initialize_status,
+                "content_type": initialize_type,
+                "protocol": initialize_protocol,
+            },
+            "initialized_notification": {"status": initialized_status},
+            "tools_list": {
+                "status": tools_status,
+                "count": len(tools_result.get("tools", []))
+                if isinstance(tools_result, dict) and isinstance(tools_result.get("tools"), list)
+                else 0,
+            },
+            "resources_list": {
+                "status": resources_status,
+                "count": len(resources_result.get("resources", []))
+                if isinstance(resources_result, dict) and isinstance(resources_result.get("resources"), list)
+                else 0,
+            },
+        }
+    )
+    if not summary["ok"]:
+        summary["error"] = "NyankoFace MCP protocol check did not satisfy the expected response contract"
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if not summary["ok"]:
+        raise SystemExit(2)
+
+
 def forgejo_request(
     path: str,
     *,
@@ -238,6 +414,8 @@ def source(_: argparse.Namespace) -> None:
                 "public_url": BASE_URL,
                 "forgejo_url": FORGEJO_URL,
                 "mcp_url": MCP_URL,
+                "mcp_token_file": MCP_TOKEN_FILE,
+                "mcp_client_token_configured": mcp_token_available(),
                 "github_repository": GITHUB_REPO,
                 "github_url": GITHUB_URL,
                 "github_issues_url": GITHUB_ISSUES_URL,
@@ -598,6 +776,9 @@ def main() -> None:
 
     source_parser = sub.add_parser("source")
     source_parser.set_defaults(handler=source)
+
+    mcp = sub.add_parser("mcp-check")
+    mcp.set_defaults(handler=mcp_check)
 
     contract = sub.add_parser("artifact-contract")
     contract.set_defaults(handler=artifact_contract)

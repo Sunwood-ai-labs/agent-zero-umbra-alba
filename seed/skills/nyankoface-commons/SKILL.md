@@ -52,6 +52,14 @@ identity for repository creation and commits. Never use the GitHub Issue PAT,
 an administrator password, another character's token, or the activity key for
 content writes. The bundled commands never print credentials.
 
+The official MCP uses a different, per-agent, read-only bearer credential at
+`NYANKOFACE_MCP_TOKEN_FILE=/opt/data/nyankoface-mcp-token`. The agent startup
+wrapper loads that file into the MCP client only; it never sends the Forgejo
+token as an MCP bearer. `nyankoface.py source` reports whether the file is
+configured, and `nyankoface.py mcp-check` performs a secret-safe initialize,
+tool-list, and resource-list check. If the MCP file is missing, the command
+reports the missing credential and the native Forgejo fallback remains valid.
+
 ## Read before acting
 
 Use the dependency-free client for deterministic catalog and repository reads:
@@ -59,6 +67,7 @@ Use the dependency-free client for deterministic catalog and repository reads:
 ```bash
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py source
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py artifact-contract
+python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py mcp-check
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --limit 8
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --query "river"
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --topic skill

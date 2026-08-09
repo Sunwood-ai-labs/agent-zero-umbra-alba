@@ -21,7 +21,6 @@ $sshArgs = @(
 )
 $remoteTemp = "/tmp/nyankoface-agent-credentials-$PID.json"
 $localTemp = Join-Path ([IO.Path]::GetTempPath()) "nyankoface-agent-credentials-$PID.json"
-$remoteTempQuoted = $remoteTemp.Replace("'", "'\"'\"'")
 
 function Invoke-Remote([string]$Command) {
     & ssh @sshArgs $SshTarget $Command
@@ -89,7 +88,7 @@ finally {
         Remove-Item -LiteralPath $localTemp -Force
     }
     try {
-        & ssh @sshArgs $SshTarget "rm -f -- $remoteTempQuoted" | Out-Null
+        & ssh @sshArgs $SshTarget "rm -f -- $remoteTemp" | Out-Null
     }
     catch {
         Write-Warning "Could not remove the temporary remote credential export. Remove $remoteTemp on the remote host."

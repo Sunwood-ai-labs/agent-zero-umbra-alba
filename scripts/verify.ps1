@@ -145,7 +145,7 @@ try {
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_PUBLIC_URL' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'agent-view' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'artifact-contract' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'operator-reviewed'
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'operator[\s\S]*publish'
             ) {
                 throw "NyankoFace commons skill is not installed for $service."
             }

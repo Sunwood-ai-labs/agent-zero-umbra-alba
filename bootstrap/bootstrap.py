@@ -29,6 +29,24 @@ LITELLM_MODELS = [
     if model.strip()
 ]
 FACTION = os.getenv("FACTION", "neutral").strip() or "neutral"
+NYANKOFACE_PUBLIC_URL = os.getenv(
+    "NYANKOFACE_PUBLIC_URL", "https://madesk.tail8be30.ts.net"
+).rstrip("/")
+NYANKOFACE_GITHUB_REPO = os.getenv(
+    "NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFace"
+).strip()
+NYANKOFACE_GITHUB_URL = os.getenv(
+    "NYANKOFACE_GITHUB_URL", f"https://github.com/{NYANKOFACE_GITHUB_REPO}"
+).rstrip("/")
+NYANKOFACE_LOCAL_PATH = os.getenv(
+    "NYANKOFACE_LOCAL_PATH", ""
+).strip()
+NYANKOFACE_SSH_TARGET = os.getenv(
+    "NYANKOFACE_SSH_TARGET", ""
+).strip()
+NYANKOFACE_AGENT_KEY_FILE = os.getenv(
+    "NYANKOFACE_AGENT_API_KEY_FILE", "/opt/data/nyankoface-agent-api-key"
+).strip()
 AGENT_INDICES = [
     int(item.strip())
     for item in os.getenv("AGENT_INDICES", "1,2,3,4,5,6,7,8,9,10").split(",")
@@ -540,6 +558,11 @@ def write_profile(
                 f"MISSKEY_URL={MISSKEY_URL}",
                 f"MISSKEY_PUBLIC_URL={PUBLIC_URL}",
                 f"MISSKEY_USERNAME={username}",
+                f"NYANKOFACE_PUBLIC_URL={NYANKOFACE_PUBLIC_URL}",
+                f"NYANKOFACE_GITHUB_REPO={NYANKOFACE_GITHUB_REPO}",
+                f"NYANKOFACE_GITHUB_URL={NYANKOFACE_GITHUB_URL}",
+                f"NYANKOFACE_AGENT_SLUG={username}",
+                f"NYANKOFACE_AGENT_API_KEY_FILE={NYANKOFACE_AGENT_KEY_FILE}",
                 "TZ=Asia/Tokyo",
                 "",
             ]
@@ -651,6 +674,12 @@ def write_profile(
 - メモリには確定した観察、自分の未完の約束、重要な合意や異論、立場の変更、残る不確実性だけを簡潔に保ち、単なる操作履歴や反応件数を蓄積しない。
 - 重複や無効になった記述は追記で残し続けず、置換または削除する。`WORLD.md`と矛盾する以前の実験のノルマや指示は現在の事実として保持しない。
 
+## NyankoFace共有地
+
+NyankoFaceは、この文明の外にある知識・道具・Skill・Prompt・Space・成果物の共有地です。公開入口は `{NYANKOFACE_PUBLIC_URL}/`、ソースリポジトリは `{NYANKOFACE_GITHUB_URL}` です。必要な問いや試行がある時だけ、`skills/nyankoface-commons/SKILL.md`とそのスクリプトで公開カタログ、公開エージェント一覧、リポジトリ指標を読みます。見つけたものが自分の判断を変えた時だけ、正確な公開URL、読んだ事実、まだ未確認の点をMisskeyやmemoryへ自然に残します。
+
+ローカルのソースチェックアウトと運用ミラーはGM・運用者だけが管理する参照情報です。キャラクターコンテナからroot SSH、GitHubへのpush、ForgejoのIssue作成、Space起動、変数・Secret変更は行いません。個別のNyankoFaceエージェント鍵が `{NYANKOFACE_AGENT_KEY_FILE}` に運用者から安全に渡された時だけ、意味のある閲覧またはlikeを冪等なAPIで記録してよく、鍵がなければ公開読み取りだけを使い、活動を捏造しません。
+
 ## 競合とGM
 
 - GMは住民ではなく、このTRPG世界の場面進行と裁定を担当する。タイムラインに届く`【GM場面`と`【GM戦闘開始`は、現在の場面・争点・確認済みの世界事実として優先して読む。GMが示した期限とラウンドを無視して、結果を先取りしない。
@@ -671,10 +700,11 @@ def write_profile(
         encoding="utf-8",
     )
 
-    skill_target = agent_dir / "skills" / "misskey-social"
-    if skill_target.exists():
-        shutil.rmtree(skill_target)
-    shutil.copytree(SEED / "skills" / "misskey-social", skill_target)
+    for skill_name in ("misskey-social", "nyankoface-commons"):
+        skill_target = agent_dir / "skills" / skill_name
+        if skill_target.exists():
+            shutil.rmtree(skill_target)
+        shutil.copytree(SEED / "skills" / skill_name, skill_target)
 
     cron_dir = agent_dir / "cron"
     cron_dir.mkdir(parents=True, exist_ok=True)
@@ -861,6 +891,15 @@ def main() -> None:
         "species": "catfolk",
         "coat": CAT_KIND,
         "misskeyUrl": PUBLIC_URL,
+        "nyankoface": {
+            "publicUrl": NYANKOFACE_PUBLIC_URL,
+            "githubRepository": NYANKOFACE_GITHUB_REPO,
+            "githubUrl": NYANKOFACE_GITHUB_URL,
+            "operatorLocalPath": NYANKOFACE_LOCAL_PATH,
+            "operatorSshMirror": NYANKOFACE_SSH_TARGET,
+            "agentApiKeyFile": NYANKOFACE_AGENT_KEY_FILE,
+            "mode": "public-read-with-optional-agent-metrics",
+        },
         "models": LITELLM_MODELS,
         "agentCount": len(records),
         "worldPremise": {

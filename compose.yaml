@@ -88,6 +88,11 @@ services:
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: world
       AGENT_INDICES: ""
+      NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
+      NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
+      NYANKOFACE_GITHUB_URL: ${NYANKOFACE_GITHUB_URL:-https://github.com/Sunwood-ai-labs/NyankoFace}
+      NYANKOFACE_LOCAL_PATH: ${NYANKOFACE_LOCAL_PATH:-}
+      NYANKOFACE_SSH_TARGET: ${NYANKOFACE_SSH_TARGET:-}
     command: ["python", "/app/bootstrap.py"]
     volumes:
       - ./bootstrap:/app:ro
@@ -150,6 +155,11 @@ services:
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: black
       AGENT_INDICES: "1,3,5,7,9,11,13,15,17,19"
+      NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
+      NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
+      NYANKOFACE_GITHUB_URL: ${NYANKOFACE_GITHUB_URL:-https://github.com/Sunwood-ai-labs/NyankoFace}
+      NYANKOFACE_LOCAL_PATH: ${NYANKOFACE_LOCAL_PATH:-}
+      NYANKOFACE_SSH_TARGET: ${NYANKOFACE_SSH_TARGET:-}
     command: ["python", "/app/bootstrap.py"]
     volumes:
       - ./bootstrap:/app:ro
@@ -212,6 +222,11 @@ services:
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: white
       AGENT_INDICES: "2,4,6,8,10,12,14,16,18,20"
+      NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
+      NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
+      NYANKOFACE_GITHUB_URL: ${NYANKOFACE_GITHUB_URL:-https://github.com/Sunwood-ai-labs/NyankoFace}
+      NYANKOFACE_LOCAL_PATH: ${NYANKOFACE_LOCAL_PATH:-}
+      NYANKOFACE_SSH_TARGET: ${NYANKOFACE_SSH_TARGET:-}
     command: ["python", "/app/bootstrap.py"]
     volumes:
       - ./bootstrap:/app:ro
@@ -266,7 +281,10 @@ services:
       RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.50}
       RANDOM_INITIAL_MAX_SECONDS: ${RANDOM_INITIAL_MAX_SECONDS:-90}
       CONFLICT_HINT_EVERY: ${CONFLICT_HINT_EVERY:-3}
+      NYANKOFACE_HINT_EVERY: ${NYANKOFACE_HINT_EVERY:-10}
       HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-black-v1}
+      NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
+      NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
     volumes: ["./scheduler:/app:ro", "./runtime/instances/black/scheduler:/state"]
     networks: [black-net]
   white-scheduler:
@@ -294,7 +312,10 @@ services:
       RANDOM_FAST_PROBABILITY: ${RANDOM_FAST_PROBABILITY:-0.50}
       RANDOM_INITIAL_MAX_SECONDS: ${RANDOM_INITIAL_MAX_SECONDS:-90}
       CONFLICT_HINT_EVERY: ${CONFLICT_HINT_EVERY:-3}
+      NYANKOFACE_HINT_EVERY: ${NYANKOFACE_HINT_EVERY:-10}
       HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-white-v1}
+      NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
+      NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
     volumes: ["./scheduler:/app:ro", "./runtime/instances/white/scheduler:/state"]
     networks: [white-net]
 

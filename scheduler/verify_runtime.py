@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify internal Hermes APIs and Misskey skill distribution without leaking keys."""
+"""Verify Hermes APIs and the bundled Misskey/NyankoFace skill distribution."""
 
 import json
 import os
@@ -47,5 +47,7 @@ for agent in agents:
     names = {skill.get("name") for skill in skills}
     if "misskey-social" not in names:
         raise RuntimeError(f"{agent} does not expose misskey-social")
+    if "nyankoface-commons" not in names:
+        raise RuntimeError(f"{agent} does not expose nyankoface-commons")
 
-print(f"Verified {len(agents)} authenticated Hermes APIs and misskey-social on every agent.")
+print(f"Verified {len(agents)} authenticated Hermes APIs with misskey-social and nyankoface-commons on every agent.")

@@ -69,6 +69,13 @@ try {
         if ([int]$manifest.agentCount -ne $instance.ExpectedAgents) {
             throw "$($instance.Name) expected $($instance.ExpectedAgents) agents, found $($manifest.agentCount)."
         }
+        if (
+            $manifest.nyankoface.publicUrl -ne "https://madesk.tail8be30.ts.net" -or
+            $manifest.nyankoface.githubRepository -ne "Sunwood-ai-labs/NyankoFace" -or
+            $manifest.nyankoface.mode -ne "public-read-with-optional-agent-metrics"
+        ) {
+            throw "$($instance.Name) manifest does not contain the NyankoFace commons contract."
+        }
 
         $fullPremise = $premiseText + "`n`nこのサーバーの視点: $($instance.Faction)。これは担当や勝利条件ではなく、他の視点と異なる情報の境界です。"
         $premiseHash = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($fullPremise)))).Replace("-", "").ToLowerInvariant()
@@ -108,7 +115,11 @@ try {
             }
             $soulPath = Join-Path $agentRoot "SOUL.md"
             $soulText = Get-Content -Raw -LiteralPath $soulPath
-            if ($soulText -notmatch [regex]::Escape($competitionHeading) -or $soulText -notmatch '競争提案') {
+            if (
+                $soulText -notmatch [regex]::Escape($competitionHeading) -or
+                $soulText -notmatch '競争提案' -or
+                $soulText -notmatch 'NyankoFace共有地'
+            ) {
                 throw "Autonomous competition guidance is missing for $service."
             }
             $configPath = Join-Path $agentRoot "config.yaml"
@@ -125,6 +136,24 @@ try {
                 (Get-Content -Raw -LiteralPath $socialSkillPath) -notmatch 'history --limit 40'
             ) {
                 throw "40-note self-history review is not installed for $service."
+            }
+            $nyankoSkillPath = Join-Path $agentRoot "skills\nyankoface-commons\SKILL.md"
+            $nyankoScriptPath = Join-Path $agentRoot "skills\nyankoface-commons\scripts\nyankoface.py"
+            if (
+                -not (Test-Path -LiteralPath $nyankoSkillPath) -or
+                -not (Test-Path -LiteralPath $nyankoScriptPath) -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_PUBLIC_URL' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'agent-view'
+            ) {
+                throw "NyankoFace commons skill is not installed for $service."
+            }
+            $agentEnvPath = Join-Path $agentRoot ".env"
+            $agentEnvText = Get-Content -Raw -LiteralPath $agentEnvPath
+            if ($agentEnvText -notmatch '(?m)^NYANKOFACE_PUBLIC_URL=') {
+                throw "NyankoFace public URL is not configured for $service."
+            }
+            if ($agentEnvText -notmatch '(?m)^NYANKOFACE_AGENT_API_KEY_FILE=/opt/data/nyankoface-agent-api-key\s*$') {
+                throw "Per-agent NyankoFace key path contract is missing for $service."
             }
         }
     }

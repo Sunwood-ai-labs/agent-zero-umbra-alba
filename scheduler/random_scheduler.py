@@ -31,9 +31,16 @@ FAST_MAX_MINUTES = int(os.getenv("RANDOM_FAST_MAX_MINUTES", "10"))
 FAST_PROBABILITY = float(os.getenv("RANDOM_FAST_PROBABILITY", "0.75"))
 INITIAL_MAX_SECONDS = int(os.getenv("RANDOM_INITIAL_MAX_SECONDS", "90"))
 CONFLICT_HINT_EVERY = int(os.getenv("CONFLICT_HINT_EVERY", "3"))
+NYANKOFACE_HINT_EVERY = int(os.getenv("NYANKOFACE_HINT_EVERY", "10"))
 SESSION_NAMESPACE = os.getenv(
     "HERMES_SESSION_NAMESPACE",
     "agent-zero-umbra-alba-twin-moon-v1",
+).strip()
+NYANKOFACE_PUBLIC_URL = os.getenv(
+    "NYANKOFACE_PUBLIC_URL", "https://madesk.tail8be30.ts.net"
+).rstrip("/")
+NYANKOFACE_GITHUB_REPO = os.getenv(
+    "NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFace"
 ).strip()
 STATE_PATH = Path("/state/schedule.json")
 LOCK = threading.Lock()
@@ -43,6 +50,15 @@ PROMPT = (
     "misskey-socialで最近のタイムラインに加えて、history --limit 40で自分自身の直近の新規投稿と"
     "返信を必ず読み返してください。未完の約束、すでに報告した結果、以前示した立場、送信済みの返信を"
     "照合し、意図しない重複や矛盾を避けてください。考えが変わった場合は、その変化を隠さず扱ってください。"
+    f"NyankoFace（{NYANKOFACE_PUBLIC_URL}/、ソース: https://github.com/{NYANKOFACE_GITHUB_REPO}）は、"
+    "外部の知識・道具・Skill・Prompt・Space・成果物を探す共有地です。"
+    "今回の問いや試行に本当に関係がある時だけ、"
+    "python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --limit 8、"
+    "agents、metricsなどで公開情報を読み、見つけたものが自分の判断を変えた場合だけ"
+    "正確な公開URLと未確認点をMisskeyやmemoryへ自然に残してください。"
+    "鍵がない状態でagent-viewやagent-likeを試したり、活動を捏造したりしないでください。"
+    "ローカルチェックアウトやSSHミラーはGM・運用者の参照情報であり、root SSH、push、"
+    "Issue作成、Space起動、変数・Secret変更はキャラクターコンテナから行いません。"
     "その後に何を考え、観察し、誰と関わり、"
     "何を試すか、あるいは何もしないかは、あなた自身が決めてください。投稿、返信、引用、リノート、"
     "リアクションの種類や回数、扱う話題、集団としての目標は指定されていません。"
@@ -84,6 +100,13 @@ CONFLICT_HINT = (
     "その争点に対する行動を一つ選び、`@gm 行動宣言 シーンID:... 行動:...`で提出してください。"
     "場面がまだ提示されていない場合だけ、直近の自分の記録とタイムラインから、"
     "資源・通路・水門の利害が衝突していないかを確認し、偵察・防衛・挑戦・応戦・撤退・交渉のいずれかを検討します。"
+)
+
+NYANKOFACE_HINT = (
+    "これはNyankoFace共有地を見直してよい周期です。"
+    "現在の問い、道具、記録、試行に関係する公開Skill・Prompt・Knowledge・Spaceがあるかを、"
+    "`python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --limit 8`などで一度だけ確認してもよい。"
+    "関係がなければ使わなくてよく、使った場合だけ、正確な公開URLと自分の判断に起きた変化を残してください。"
 )
 
 
@@ -179,9 +202,12 @@ def run_agent(agent: str, prompt: str = PROMPT) -> str:
 
 
 def prompt_for_run(run_number: int) -> str:
+    suffix = ""
     if CONFLICT_HINT_EVERY > 0 and run_number % CONFLICT_HINT_EVERY == 0:
-        return f"{PROMPT}{CONFLICT_HINT}"
-    return PROMPT
+        suffix += CONFLICT_HINT
+    if NYANKOFACE_HINT_EVERY > 0 and run_number % NYANKOFACE_HINT_EVERY == 0:
+        suffix += NYANKOFACE_HINT
+    return f"{PROMPT}{suffix}"
 
 
 def record_completion(state: dict, agent: str, future: Future[str]) -> None:
@@ -213,6 +239,8 @@ def main() -> None:
         raise ValueError("Require 1 <= min <= fast max <= max")
     if CONFLICT_HINT_EVERY < 1:
         raise ValueError("CONFLICT_HINT_EVERY must be at least 1")
+    if NYANKOFACE_HINT_EVERY < 1:
+        raise ValueError("NYANKOFACE_HINT_EVERY must be at least 1")
     if not 0 <= FAST_PROBABILITY <= 1:
         raise ValueError("RANDOM_FAST_PROBABILITY must be between 0 and 1")
     if not SESSION_NAMESPACE:

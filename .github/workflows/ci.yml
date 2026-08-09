@@ -47,6 +47,7 @@ jobs:
           gm/gm.py
           gm/test_gm.py
           seed/skills/misskey-social/scripts/misskey_social.py
+          seed/skills/nyankoface-commons/scripts/nyankoface.py
 
       - name: Test GM scene state machine
         run: uv run --no-project python -m unittest gm/test_gm.py -v

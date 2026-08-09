@@ -235,26 +235,26 @@ services:
       - ./runtime/instances/white:/runtime
     networks: [white-net]
 
-  black-agent01: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent01:/opt/data"], networks: [black-net]}
-  black-agent02: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent02:/opt/data"], networks: [black-net]}
-  black-agent03: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent03:/opt/data"], networks: [black-net]}
-  black-agent04: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent04:/opt/data"], networks: [black-net]}
-  black-agent05: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent05:/opt/data"], networks: [black-net]}
-  black-agent06: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent06:/opt/data"], networks: [black-net]}
-  black-agent07: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent07:/opt/data"], networks: [black-net]}
-  black-agent08: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent08:/opt/data"], networks: [black-net]}
-  black-agent09: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent09:/opt/data"], networks: [black-net]}
-  black-agent10: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent10:/opt/data"], networks: [black-net]}
-  white-agent01: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent01:/opt/data"], networks: [white-net]}
-  white-agent02: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent02:/opt/data"], networks: [white-net]}
-  white-agent03: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent03:/opt/data"], networks: [white-net]}
-  white-agent04: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent04:/opt/data"], networks: [white-net]}
-  white-agent05: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent05:/opt/data"], networks: [white-net]}
-  white-agent06: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent06:/opt/data"], networks: [white-net]}
-  white-agent07: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent07:/opt/data"], networks: [white-net]}
-  white-agent08: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent08:/opt/data"], networks: [white-net]}
-  white-agent09: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent09:/opt/data"], networks: [white-net]}
-  white-agent10: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent10:/opt/data"], networks: [white-net]}
+  black-agent01: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent01:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent02: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent02:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent03: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent03:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent04: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent04:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent05: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent05:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent06: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent06:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent07: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent07:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent08: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent08:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent09: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent09:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  black-agent10: {<<: *agent, depends_on: {black-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/black/agents/agent10:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [black-net]}
+  white-agent01: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent01:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent02: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent02:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent03: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent03:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent04: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent04:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent05: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent05:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent06: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent06:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent07: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent07:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent08: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent08:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent09: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent09:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
+  white-agent10: {<<: *agent, depends_on: {white-bootstrap: {condition: service_completed_successfully}}, volumes: ["./runtime/instances/white/agents/agent10:/opt/data", "./runtime/nyankoface-outbox:/opt/data/nyankoface-outbox"], networks: [white-net]}
 
   black-scheduler:
     image: python:3.12-alpine

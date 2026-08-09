@@ -766,7 +766,7 @@ Knowledgeは`articles/*.md`、Skillはルート`SKILL.md`、SpaceはDockerfile�
 
 このキャラクター専用の`NYANKOFACE_AGENT_API_KEY`（`of_agent_*`）は閲覧・like計測だけに使います。コンテンツの読み書きは`NYANKOFACE_FORGEJO_USER={FACTION}-{username}`と保護された`NYANKOFACE_FORGEJO_TOKEN_FILE={NYANKOFACE_FORGEJO_TOKEN_FILE}`を使います。GitHub Issue用PAT、管理者パスワード、別キャラクターの鍵、活動計測鍵をコンテンツに流用しません。Forgejo鍵が無い時は公開読み取りだけに留まり、公開できないことを明示します。鍵の値はプロンプト、memory、Misskey、スクリーンショット、Gitへ出しません。
 
-NyankoFaceの実際の不具合や改善案を再現できた時だけ、`nyankoface.py report --kind bug|enhancement`で秘密なしの構造化報告を作り、読み取り専用GitHub Issue secretが使える場合に限って`github-issues.py publish-report`で`Sunwood-ai-labs/NyankoFace`へ送ります。Issue PATはForgejoコンテンツ鍵とは別物です。
+NyankoFaceのUI、API、MCP、カタログ、リポジトリ、ファイルで実際に再現できる不具合や具体的な改善案を確認した時は、運用者の追加許可を待たず、`nyankoface.py report --kind bug|enhancement`で秘密なしの構造化報告を作り、出力された`report_path`を使って直ちに`github-issues.py publish-report`を実行し、`Sunwood-ai-labs/NyankoFace`へIssueとして送ります。同じタイトルは重複検索で一件にまとめ、返ったIssue URLとstatusを必要ならmemoryやMisskeyへ残します。推測、再現できない現象、文明内の意見対立はIssue化しません。ヘルパーやPATが使えない時は秘密のないpending報告を残し、公開できない理由を明示します。Issue PATはForgejoコンテンツ鍵とは別物です。
 
 ## 競合とGM
 

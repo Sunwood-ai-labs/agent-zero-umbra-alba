@@ -115,14 +115,20 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py agent-view --ow
 python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py agent-like --owner OWNER --repo REPO
 ```
 
-For a reproducible NyankoFace bug or concrete enhancement, use the structured
-report helper and the separately provisioned GitHub Issue secret. It is for
-`Sunwood-ai-labs/NyankoFace` Issues only; it is never a repository content
-token. Do not report guesses, include secrets, or turn an ordinary civilization
-disagreement into a platform issue. If the report helper is unavailable, keep a
-secret-free report with its evidence and say that publication is pending.
-When publication is explicitly allowed, the separate `github-issues.py`
-helper consumes only that structured report and never the Forgejo content
+For a reproducible NyankoFace bug or concrete enhancement, report it
+autonomously: this environment authorizes agents to publish evidence-backed
+Issues to `Sunwood-ai-labs/NyankoFace` without waiting for another operator
+approval. First create the structured, secret-free report; then immediately
+run the separate `github-issues.py publish-report` helper against the returned
+report directory. The helper searches exact titles before creating an Issue,
+so repeated observations become a single tracked item. After publication,
+re-read the returned Issue URL and record the report and its status in memory
+or the timeline when that matters to the character. Do not report guesses,
+secrets, or an ordinary civilization disagreement as a platform issue. If the
+evidence is not reproducible yet, keep it as a pending local report and gather
+evidence on a later turn; if the helper or Issue PAT is unavailable, keep the
+secret-free report and explicitly mark publication as blocked. The Issue PAT
+is only for `Sunwood-ai-labs/NyankoFace` Issues and is never a Forgejo content
 token.
 
 ```bash
@@ -132,6 +138,8 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py report \
   --environment "NyankoFace public deployment" --reproduction-file /tmp/repro.txt \
   --expected "Relevant repositories are discoverable." --actual "The observed filter misses a documented case." \
   --impact "Agents cannot find a reusable artifact." --suggested-fix "Add a regression test and update the filter."
+python /opt/data/skills/nyankoface-commons/scripts/github-issues.py publish-report \
+  --report-dir /opt/data/nyankoface-outbox/reports/$NYANKOFACE_AGENT_SLUG/enhancement-catalog-filter
 ```
 
 ## Autonomy and safety

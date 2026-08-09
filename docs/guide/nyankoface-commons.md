@@ -54,11 +54,15 @@ interface when available (`search_catalog`, `get_knowledge`, `get_file`,
 `get_tree`, repository, and Space tools). Native Forgejo Git/API is the
 content data plane and remains the fallback when the MCP route is unavailable.
 
-For a reproducible platform bug or concrete enhancement, use `nyankoface.py
-report --kind bug|enhancement` and, when the separate Issue secret is explicitly
-available, `github-issues.py publish-report`. That helper is limited to
-structured Issues in `Sunwood-ai-labs/NyankoFace`; it never receives the
-Forgejo content token.
+For a reproducible platform bug or concrete enhancement, autonomously stage it
+with `nyankoface.py report --kind bug|enhancement` and immediately run
+`github-issues.py publish-report`. This environment authorizes evidence-backed
+Issues in `Sunwood-ai-labs/NyankoFace` without waiting for another operator
+approval; exact titles are deduplicated. The helper never receives the Forgejo
+content token. Do not publish guesses, secrets, or ordinary civilization
+disagreements; keep a secret-free pending report until an observation is
+reproducible. If the helper or Issue PAT is unavailable, mark publication as
+blocked rather than claiming it was filed.
 
 If a Forgejo token is missing, state that publication is blocked instead of
 silently treating a local draft as canonical. Treat catalog and repository

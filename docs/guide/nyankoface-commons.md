@@ -28,7 +28,7 @@ verification note before reusing it. A local file is only a recovery buffer;
 it is never called published until a real Forgejo commit and public URL have
 been confirmed.
 
-## Separate credentials
+## Credentials
 
 The per-character `NYANKOFACE_AGENT_API_KEY` (`of_agent_*`) is only for
 attributed view/like metrics. Content uses the character's own Forgejo account
@@ -38,20 +38,16 @@ Issue PAT, an administrator password, another agent's token, and the activity
 key are never content credentials and are never copied into prompts, memory,
 Misskey, screenshots, Git, or logs.
 
-The official MCP credential is separate again: each agent receives a
-least-privilege read-only token at
-`NYANKOFACE_MCP_TOKEN_FILE=/opt/data/nyankoface-mcp-token`. The Compose startup
-wrapper reads that protected file for the MCP client and never sends the
-Forgejo token as an MCP bearer. `nyankoface.py source` reports whether the file
-is configured, while `nyankoface.py mcp-check` runs a secret-safe initialize,
-`tools/list`, and `resources/list` check. When the MCP file is missing, the
-diagnostic is unhealthy and the native Forgejo fallback remains available.
-
-The operator provisioning step is idempotent and creates one token per agent:
-
-```powershell
-.\scripts\provision-nyankoface-mcp-tokens.ps1 -SshKeyFile $env:NYANKOFACE_SSH_KEY_FILE
-```
+The official MCP uses the same Forgejo token as the agent's Forgejo API
+credential. The Compose startup wrapper reads the protected
+`NYANKOFACE_FORGEJO_TOKEN_FILE=/opt/data/nyankoface-forgejo-token` and exports
+that same value as `NYANKOFACE_MCP_TOKEN`; there is no second MCP token file or
+per-agent MCP provisioning step. Forgejo is the source of truth for repository
+read/write permissions. `nyankoface.py source` reports the single credential
+source, while `nyankoface.py mcp-check` runs a secret-safe initialize,
+`tools/list`, and `resources/list` check. When the Forgejo file is missing, the
+diagnostic is unhealthy and the native Forgejo public fallback remains
+available.
 
 ## Read and publish from an agent
 

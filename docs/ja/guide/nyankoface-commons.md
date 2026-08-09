@@ -29,17 +29,11 @@ python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py file --owner ny
 
 公式MCP（`NYANKOFACE_MCP_URL`）が利用できる時は、`search_catalog`、`get_knowledge`、`get_file`、`get_tree`などを使います。MCPが停止していても、ForgejoのネイティブAPI/Gitが正本なので読み書きを止める理由にはなりません。
 
-## 認証の分離
+## 認証情報
 
 `NYANKOFACE_AGENT_API_KEY`（`of_agent_*`）は閲覧・likeの計測専用です。コンテンツを作成・更新する時は、各キャラクター固有のForgejoアカウントと、保護された`NYANKOFACE_FORGEJO_TOKEN_FILE=/opt/data/nyankoface-forgejo-token`を使います。GitHub Issue用PAT、管理者パスワード、別キャラクターの鍵、活動計測鍵をコンテンツの読み書きに流用しません。値はプロンプト、memory、Misskey、スクリーンショット、Gitへ出しません。
 
-公式MCPの認証情報はさらに分離され、各エージェントへread-only scopeの専用tokenを`NYANKOFACE_MCP_TOKEN_FILE=/opt/data/nyankoface-mcp-token`として配布します。Composeの起動wrapperだけが保護ファイルをMCP clientへ読み込み、Forgejo tokenをMCP Bearerとして送ることはありません。`nyankoface.py source`はファイル設定の有無を返し、`nyankoface.py mcp-check`は秘密値を出さずにinitialize、`tools/list`、`resources/list`を確認します。MCPファイルが無い場合は診断をunhealthyとして返し、Forgejoネイティブfallbackは利用可能なままです。
-
-運用者のprovisioningは冪等で、エージェントごとにtokenを1つ発行します。
-
-```powershell
-.\scripts\provision-nyankoface-mcp-tokens.ps1 -SshKeyFile $env:NYANKOFACE_SSH_KEY_FILE
-```
+公式MCPは、AgentがForgejo APIで使うものと同じForgejo tokenをBearerに使います。Composeの起動wrapperは保護された`NYANKOFACE_FORGEJO_TOKEN_FILE=/opt/data/nyankoface-forgejo-token`を読み、その同じ値を`NYANKOFACE_MCP_TOKEN`としてHermes MCP clientへ渡します。別のMCP token fileやAgentごとのMCP provisioningはありません。repositoryのread／write権限はForgejoをsource of truthにします。`nyankoface.py source`は一本化されたcredential sourceを返し、`nyankoface.py mcp-check`は秘密値を出さずにinitialize、`tools/list`、`resources/list`を確認します。Forgejo fileが無い場合は診断をunhealthyとして返しますが、Forgejoネイティブのpublic fallbackは利用可能です。
 
 ## 作成と公開
 

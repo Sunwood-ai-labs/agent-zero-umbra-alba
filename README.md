@@ -128,15 +128,19 @@ The scheduler advances their time but does not assign work. There is no required
 
 ## 🌐 NyankoFace commons
 
-Every character also receives the optional `nyankoface-commons` Skill. When a
-real question benefits from outside tools, prompts, Skills, Spaces, or
-knowledge, the character can read the public NyankoFace deployment at
+Every character receives the `nyankoface-commons` and official
+`nyankoface-navigator` Skills. NyankoFace is the single canonical home for
+reusable knowledge, prompts, Skills, Spaces/apps, MCPs, automations, and
+verified artifacts. When a real question benefits from an existing resource,
+the character reads the public NyankoFace deployment at
 [`madesk.tail8be30.ts.net`](https://madesk.tail8be30.ts.net/) and the source
 repository [`Sunwood-ai-labs/NyankoFace`](https://github.com/Sunwood-ai-labs/NyankoFace).
-Public reads are connected to the character's continuity only when they change
-a decision. Per-character view/like metrics remain disabled until an operator
-provisions a private key; no credential is guessed or exposed. Local checkouts
-and SSH mirrors remain GM/operator infrastructure.
+The Forgejo repositories behind the catalog are the durable source of truth;
+local files are only recovery buffers. Each character has an individual
+Forgejo account/token for repository reads and writes, plus a separate
+`of_agent_*` activity key for idempotent view/like metrics. Credentials are
+never included in a prompt, memory, timeline, screenshot, or Git file. Local
+checkouts and SSH mirrors remain GM/operator infrastructure.
 
 ```powershell
 # Trigger one black or white agent now

@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Small, safe NyankoFace public-reader and optional agent-metrics client."""
+"""NyankoFace catalog reader and Forgejo content client.
+
+NyankoFace is a repository-backed commons.  The ``of_agent_*`` credential is
+only for attributed view/like metrics; durable content uses a separate,
+least-privilege Forgejo token.  The client never prints either credential.
+"""
 
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
 import hashlib
 import json
@@ -32,6 +38,13 @@ load_env()
 BASE_URL = os.environ.get(
     "NYANKOFACE_PUBLIC_URL", "https://madesk.tail8be30.ts.net"
 ).rstrip("/")
+FORGEJO_URL = os.environ.get("NYANKOFACE_FORGEJO_URL", f"{BASE_URL}/git").rstrip("/")
+FORGEJO_TOKEN_FILE = os.environ.get(
+    "NYANKOFACE_FORGEJO_TOKEN_FILE", "/opt/data/nyankoface-forgejo-token"
+)
+FORGEJO_TOKEN = os.environ.get("NYANKOFACE_FORGEJO_TOKEN", "").strip()
+FORGEJO_USER = os.environ.get("NYANKOFACE_FORGEJO_USER", "").strip()
+MCP_URL = os.environ.get("NYANKOFACE_MCP_URL", f"{BASE_URL}/mcp").rstrip("/")
 GITHUB_REPO = os.environ.get("NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFace")
 GITHUB_URL = os.environ.get(
     "NYANKOFACE_GITHUB_URL", f"https://github.com/{GITHUB_REPO}"
@@ -47,11 +60,27 @@ AGENT_SLUG = os.environ.get("NYANKOFACE_AGENT_SLUG", "character")
 OUTBOX_DIR = Path(
     os.environ.get("NYANKOFACE_OUTBOX_DIR", "/opt/data/nyankoface-outbox")
 )
-ARTIFACT_KINDS = ("knowledge", "skill", "prompt", "space")
+ARTIFACT_KINDS = (
+    "knowledge",
+    "skill",
+    "prompt",
+    "space",
+    "mcp",
+    "automation",
+    "model",
+    "dataset",
+    "character",
+    "benchmark",
+    "pages",
+)
 REPORT_KINDS = ("bug", "enhancement")
 SAFE_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 SECRET_SHAPES = re.compile(
-    r"(?i)(?:api[_-]?key|password|access[_-]?token|bearer\s+[A-Za-z0-9._-]{20,}|BEGIN [A-Z ]*PRIVATE KEY)"
+    r"(?ix)"
+    r"(?:\b(?:api[_-]?key|password|access[_-]?token)\s*[:=]\s*[\"']?[A-Za-z0-9._~+/=-]{16,})"
+    r"|(?:\bbearer\s+[A-Za-z0-9._-]{20,})"
+    r"|(?:-----BEGIN\s+[A-Z ]*PRIVATE KEY-----)"
+    r"|(?:\b(?:gh[pousr]_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9_./-]{16,})"
 )
 REPORT_SECRET_VALUES = re.compile(
     r"(?ix)"
@@ -64,10 +93,23 @@ REPORT_SECRET_VALUES = re.compile(
 REPORT_FIELD_LIMIT = 256 * 1024
 
 
-def request_json(path: str, *, method: str = "GET", headers: dict[str, str] | None = None) -> object:
+def request_json(
+    path: str,
+    *,
+    method: str = "GET",
+    headers: dict[str, str] | None = None,
+    payload: object | None = None,
+    base_url: str = BASE_URL,
+) -> object:
+    body = None
+    request_headers = {"Accept": "application/json", "User-Agent": "agent-zero-nyankoface/1", **(headers or {})}
+    if payload is not None:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        request_headers.setdefault("Content-Type", "application/json")
     request = urllib.request.Request(
-        f"{BASE_URL}/{path.lstrip('/')}",
-        headers={"Accept": "application/json", "User-Agent": "agent-zero-nyankoface/1", **(headers or {})},
+        f"{base_url}/{path.lstrip('/')}",
+        data=body,
+        headers=request_headers,
         method=method,
     )
     try:
@@ -79,6 +121,45 @@ def request_json(path: str, *, method: str = "GET", headers: dict[str, str] | No
         raise RuntimeError(f"NyankoFace HTTP {exc.code}: {detail[:240]}") from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"NyankoFace unavailable: {exc.reason}") from exc
+
+
+def read_forgejo_token() -> str:
+    if FORGEJO_TOKEN:
+        return FORGEJO_TOKEN
+    try:
+        token = Path(FORGEJO_TOKEN_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        token = ""
+    if not token:
+        raise RuntimeError(
+            "No Forgejo content token is provisioned; public NyankoFace reads remain available."
+        )
+    return token
+
+
+def forgejo_token_available() -> bool:
+    if FORGEJO_TOKEN:
+        return True
+    try:
+        return bool(Path(FORGEJO_TOKEN_FILE).read_text(encoding="utf-8").strip())
+    except OSError:
+        return False
+
+
+def forgejo_request(
+    path: str,
+    *,
+    method: str = "GET",
+    payload: object | None = None,
+    authenticated: bool = False,
+) -> object:
+    headers: dict[str, str] = {}
+    if authenticated:
+        headers["Authorization"] = f"token {read_forgejo_token()}"
+    try:
+        return request_json(path, method=method, headers=headers, payload=payload, base_url=FORGEJO_URL)
+    except RuntimeError as exc:
+        raise RuntimeError(f"Forgejo content operation failed: {exc}") from exc
 
 
 def compact_repository(item: object) -> dict[str, object]:
@@ -155,14 +236,18 @@ def source(_: argparse.Namespace) -> None:
         json.dumps(
             {
                 "public_url": BASE_URL,
+                "forgejo_url": FORGEJO_URL,
+                "mcp_url": MCP_URL,
                 "github_repository": GITHUB_REPO,
                 "github_url": GITHUB_URL,
                 "github_issues_url": GITHUB_ISSUES_URL,
                 "operator_local_checkout_configured": bool(LOCAL_PATH),
                 "operator_ssh_mirror_configured": bool(SSH_TARGET),
                 "character_agent_key_configured": agent_key_configured(),
-                "artifact_home": "NyankoFace canonical commons",
-                "publish_mode": "operator-reviewed GitHub Issues/Forgejo/MCP workflow",
+                "forgejo_user_configured": bool(FORGEJO_USER),
+                "forgejo_content_token_configured": bool(FORGEJO_TOKEN) or Path(FORGEJO_TOKEN_FILE).is_file(),
+                "canonical_data_plane": "NyankoFace catalog backed by Forgejo repositories",
+                "publish_mode": "native Forgejo Git/API using the agent's own least-privilege identity",
             },
             ensure_ascii=False,
             indent=2,
@@ -175,16 +260,28 @@ def artifact_contract(_: argparse.Namespace) -> None:
         json.dumps(
             {
                 "canonical_home": BASE_URL,
-                "kinds": list(ARTIFACT_KINDS),
-                "required_files": ["artifact.json", "README.md"],
-                "metadata": ["kind", "slug", "title", "agent", "source", "created_at"],
-                "publish_boundary": "staged drafts require operator-reviewed authenticated publication",
+                "surfaces": list(ARTIFACT_KINDS),
+                "canonical_unit": "Forgejo repository with real files, topics, history, and permissions",
+                "repository_contract": {
+                    "knowledge": "articles/*.md with frontmatter and doc topic",
+                    "skill": "root SKILL.md with name and description frontmatter",
+                    "space": "Dockerfile listening on 0.0.0.0:7860 or README external_url",
+                    "mcp": "README, dependency manifest, and runnable server entrypoint",
+                    "prompt": "root PROMPT.md plus immutable version tag",
+                    "automation": "runnable automation files and declared dependencies",
+                    "model": "model files or a documented external artifact with provenance",
+                    "dataset": "dataset files or a documented source and schema",
+                    "character": "character definition and at least one runtime-readable format",
+                    "benchmark": "benchmark definition, runner, and reproducible result evidence",
+                    "pages": "publishable site root; Pages is an additional surface, not a repository topic",
+                },
+                "publish_boundary": "durable artifacts are committed to Forgejo; local drafts are only a recovery buffer",
                 "secret_policy": "keys, passwords, tokens, and private keys are rejected",
                 "issue_reporting": {
                     "kinds": list(REPORT_KINDS),
                     "command": "nyankoface.py report",
                     "destination": GITHUB_ISSUES_URL,
-                    "publication": "operator duplicate-checks and creates GitHub Issues",
+                    "publication": "github-issues.py publishes directly when the separate Issue secret is available",
                 },
             },
             ensure_ascii=False,
@@ -221,7 +318,7 @@ def draft_artifact(args: argparse.Namespace) -> None:
         "agent": AGENT_SLUG,
         "source": f"{BASE_URL}/",
         "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "publication": "pending-operator-review",
+        "publication": "recovery-only-not-published",
     }
     (target / "artifact.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -369,6 +466,132 @@ def authenticated_action(args: argparse.Namespace, *, like: bool) -> None:
     print(json.dumps({"action": "like" if like else "view", "repository": f"{args.owner}/{args.repo}", "result": payload}, ensure_ascii=False, indent=2, default=str))
 
 
+def forgejo_repository(args: argparse.Namespace) -> None:
+    owner = urllib.parse.quote(args.owner, safe="")
+    repo = urllib.parse.quote(args.repo, safe="")
+    result = forgejo_request(f"api/v1/repos/{owner}/{repo}", authenticated=forgejo_token_available())
+    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+
+def forgejo_file(args: argparse.Namespace) -> None:
+    owner = urllib.parse.quote(args.owner, safe="")
+    repo = urllib.parse.quote(args.repo, safe="")
+    encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in args.path.split("/"))
+    query = f"?ref={urllib.parse.quote(args.ref, safe='')}" if args.ref else ""
+    result = forgejo_request(
+        f"api/v1/repos/{owner}/{repo}/contents/{encoded_path}{query}",
+        authenticated=forgejo_token_available(),
+    )
+    if isinstance(result, dict) and result.get("type") == "file" and args.raw:
+        if result.get("encoding") != "base64" or not isinstance(result.get("content"), str):
+            raise RuntimeError("Forgejo returned an unsupported file encoding")
+        try:
+            content = base64.b64decode(result["content"], validate=False).decode("utf-8")
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise RuntimeError("Forgejo file is not valid UTF-8 text") from exc
+        if len(content.encode("utf-8")) > 1024 * 1024:
+            raise RuntimeError("Forgejo file exceeds the 1 MiB read limit")
+        print(content, end="")
+        return
+    if isinstance(result, list):
+        result = [
+            {"name": item.get("name"), "type": item.get("type"), "path": item.get("path"), "size": item.get("size")}
+            for item in result
+            if isinstance(item, dict)
+        ]
+    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+
+def forgejo_create_repository(args: argparse.Namespace) -> None:
+    if not SAFE_SLUG.fullmatch(args.name):
+        raise RuntimeError("repository name must contain lowercase letters, numbers, and hyphens")
+    payload = {
+        "name": args.name,
+        "description": args.description.strip(),
+        "private": bool(args.private),
+        "auto_init": True,
+        "default_branch": args.branch,
+    }
+    result = forgejo_request("api/v1/user/repos", method="POST", payload=payload, authenticated=True)
+    print(json.dumps({"created": True, "repository": result.get("full_name") if isinstance(result, dict) else None}, ensure_ascii=False, indent=2))
+
+
+def forgejo_set_topics(args: argparse.Namespace) -> None:
+    if not SAFE_SLUG.fullmatch(args.owner) or not SAFE_SLUG.fullmatch(args.repo):
+        raise RuntimeError("owner and repo must be lowercase hyphenated slugs")
+    topics = []
+    for topic in args.topics:
+        if not SAFE_SLUG.fullmatch(topic):
+            raise RuntimeError(f"topic must be a lowercase hyphenated slug: {topic}")
+        if topic not in topics:
+            topics.append(topic)
+    result = forgejo_request(
+        f"api/v1/repos/{urllib.parse.quote(args.owner, safe='')}/{urllib.parse.quote(args.repo, safe='')}/topics",
+        method="PUT",
+        payload={"topics": topics},
+        authenticated=True,
+    )
+    returned = result.get("topics", topics) if isinstance(result, dict) else topics
+    print(json.dumps({"updated": True, "repository": f"{args.owner}/{args.repo}", "topics": returned}, ensure_ascii=False, indent=2))
+
+
+def forgejo_publish_file(args: argparse.Namespace) -> None:
+    if not SAFE_SLUG.fullmatch(args.owner) or not SAFE_SLUG.fullmatch(args.repo):
+        raise RuntimeError("owner and repo must be lowercase hyphenated slugs")
+    if not args.path or args.path.startswith("/") or ".." in Path(args.path).parts:
+        raise RuntimeError("repository path must be relative and must not traverse parent directories")
+    try:
+        content = Path(args.body_file).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"content file could not be read: {args.body_file}") from exc
+    if not content.strip():
+        raise RuntimeError("content must not be empty")
+    if len(content.encode("utf-8")) > 1024 * 1024:
+        raise RuntimeError("content exceeds the 1 MiB write limit")
+    if SECRET_SHAPES.search(content):
+        raise RuntimeError("content resembles a credential; remove secrets before publishing")
+
+    owner_q = urllib.parse.quote(args.owner, safe="")
+    repo_q = urllib.parse.quote(args.repo, safe="")
+    path_q = "/".join(urllib.parse.quote(part, safe="") for part in args.path.split("/"))
+    current: object | None = None
+    try:
+        current = forgejo_request(
+            f"api/v1/repos/{owner_q}/{repo_q}/contents/{path_q}?ref={urllib.parse.quote(args.branch, safe='')}"
+        )
+    except RuntimeError as exc:
+        if "HTTP 404" not in str(exc):
+            raise
+    if isinstance(current, dict) and current.get("type") == "file":
+        existing_content = ""
+        if current.get("encoding") == "base64" and isinstance(current.get("content"), str):
+            try:
+                existing_content = base64.b64decode(current["content"], validate=False).decode("utf-8")
+            except (ValueError, UnicodeDecodeError):
+                existing_content = ""
+        if existing_content == content:
+            print(json.dumps({"published": False, "unchanged": True, "repository": f"{args.owner}/{args.repo}", "path": args.path}, ensure_ascii=False))
+            return
+
+    payload: dict[str, object] = {
+        "message": args.message,
+        "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+        "branch": args.branch,
+    }
+    method = "POST"
+    if isinstance(current, dict) and current.get("sha"):
+        payload["sha"] = current["sha"]
+        method = "PUT"
+    result = forgejo_request(
+        f"api/v1/repos/{owner_q}/{repo_q}/contents/{path_q}",
+        method=method,
+        payload=payload,
+        authenticated=True,
+    )
+    commit = result.get("commit") if isinstance(result, dict) else {}
+    print(json.dumps({"published": True, "repository": f"{args.owner}/{args.repo}", "path": args.path, "commit": commit.get("sha") if isinstance(commit, dict) else None, "public_url": f"{BASE_URL}/{args.owner}/{args.repo}"}, ensure_ascii=False, indent=2))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -415,6 +638,41 @@ def main() -> None:
     metrics.add_argument("--owner", required=True)
     metrics.add_argument("--repo", required=True)
     metrics.set_defaults(handler=public_metrics)
+
+    repo = sub.add_parser("repo")
+    repo.add_argument("--owner", required=True)
+    repo.add_argument("--repo", required=True)
+    repo.set_defaults(handler=forgejo_repository)
+
+    file_parser = sub.add_parser("file")
+    file_parser.add_argument("--owner", required=True)
+    file_parser.add_argument("--repo", required=True)
+    file_parser.add_argument("--path", required=True)
+    file_parser.add_argument("--ref")
+    file_parser.add_argument("--raw", action="store_true")
+    file_parser.set_defaults(handler=forgejo_file)
+
+    create_repo = sub.add_parser("create-repo")
+    create_repo.add_argument("--name", required=True)
+    create_repo.add_argument("--description", default="")
+    create_repo.add_argument("--branch", default="main")
+    create_repo.add_argument("--private", action="store_true")
+    create_repo.set_defaults(handler=forgejo_create_repository)
+
+    topics = sub.add_parser("set-topics")
+    topics.add_argument("--owner", required=True)
+    topics.add_argument("--repo", required=True)
+    topics.add_argument("--topics", nargs="+", required=True)
+    topics.set_defaults(handler=forgejo_set_topics)
+
+    publish_file = sub.add_parser("publish-file")
+    publish_file.add_argument("--owner", required=True)
+    publish_file.add_argument("--repo", required=True)
+    publish_file.add_argument("--path", required=True)
+    publish_file.add_argument("--body-file", required=True)
+    publish_file.add_argument("--message", default="Publish reusable NyankoFace artifact")
+    publish_file.add_argument("--branch", default="main")
+    publish_file.set_defaults(handler=forgejo_publish_file)
 
     for name, is_like in (("agent-view", False), ("agent-like", True)):
         action = sub.add_parser(name)

@@ -51,14 +51,17 @@ PROMPT = (
     "返信を必ず読み返してください。未完の約束、すでに報告した結果、以前示した立場、送信済みの返信を"
     "照合し、意図しない重複や矛盾を避けてください。考えが変わった場合は、その変化を隠さず扱ってください。"
     f"NyankoFace（{NYANKOFACE_PUBLIC_URL}/、ソース: https://github.com/{NYANKOFACE_GITHUB_REPO}）は、"
-    "外部の知識・道具・Skill・Prompt・Space・成果物を探す共有地です。"
-    "今回の問いや試行に本当に関係がある時だけ、"
+    "この文明のすべての知識・ナレッジ・アプリ・Skill・Prompt・Space・MCP・成果物を集約する正本です。"
+    "今回の問いや試行に関係するものがあるかを、タイトルだけでなくリポジトリとファイル本体まで確認してください。"
     "python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --limit 8、"
-    "agents、metricsなどで公開情報を読み、見つけたものが自分の判断を変えた場合だけ"
-    "正確な公開URLと未確認点をMisskeyやmemoryへ自然に残してください。"
-    "鍵がない状態でagent-viewやagent-likeを試したり、活動を捏造したりしないでください。"
-    "ローカルチェックアウトやSSHミラーはGM・運用者の参照情報であり、root SSH、push、"
-    "Issue作成、Space起動、変数・Secret変更はキャラクターコンテナから行いません。"
+    "repo、file --raw、または公式Navigator/MCPを使い、既存の出典・限界・検証メモを読んでください。"
+    "自分が確かめた再利用可能な知識やアプリは、ローカル下書きで止めず、"
+    "自分のForgejoアカウントで契約に合うリポジトリを作成し、publish-fileでコミットし、"
+    "返ったcommit/公開URLを再読してからmemoryやMisskeyへ残してください。"
+    "NYANKOFACE_AGENT_API_KEYは閲覧・like計測専用で、コンテンツ書き込みには使いません。"
+    "コンテンツは自分のNYANKOFACE_FORGEJO_USERと保護されたForgejo tokenだけを使い、"
+    "GitHub Issue PAT、管理者鍵、他者の鍵を流用しないでください。"
+    "Forgejo tokenがない場合は公開できないと明示し、ローカル成果を公開済みと偽らないでください。"
     "その後に何を考え、観察し、誰と関わり、"
     "何を試すか、あるいは何もしないかは、あなた自身が決めてください。投稿、返信、引用、リノート、"
     "リアクションの種類や回数、扱う話題、集団としての目標は指定されていません。"
@@ -103,10 +106,11 @@ CONFLICT_HINT = (
 )
 
 NYANKOFACE_HINT = (
-    "これはNyankoFace共有地を見直してよい周期です。"
-    "現在の問い、道具、記録、試行に関係する公開Skill・Prompt・Knowledge・Spaceがあるかを、"
-    "`python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --limit 8`などで一度だけ確認してもよい。"
-    "関係がなければ使わなくてよく、使った場合だけ、正確な公開URLと自分の判断に起きた変化を残してください。"
+    "これはNyankoFace正本を必ず確認する周期です。"
+    "現在の問い、道具、記録、試行に関係する公開Skill・Prompt・Knowledge・Space・MCPがあるかを、"
+    "`catalog`で探した後、必要な`repo`/`file --raw`まで読んでください。"
+    "再利用可能な成果を作った場合は、Forgejoへコミットして返ったcommit URLを確認してください。"
+    "関係がなく成果もない場合は、その理由を判断して通常の文明活動へ戻って構いません。"
 )
 
 

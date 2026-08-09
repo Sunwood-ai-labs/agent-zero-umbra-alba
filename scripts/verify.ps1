@@ -45,7 +45,8 @@ try {
         throw "Required running services are missing: $($missingServices -join ', ')"
     }
 
-    $nyankofaceKeyValues = @()
+$nyankofaceKeyValues = @()
+$forgejoUsers = @()
     foreach ($instance in $instances) {
         $instanceRoot = Join-Path $projectRoot ("runtime\instances\{0}" -f $instance.Name)
         $manifestPath = Join-Path $instanceRoot "manifest.json"
@@ -73,7 +74,7 @@ try {
         if (
             $manifest.nyankoface.publicUrl -ne "https://madesk.tail8be30.ts.net" -or
             $manifest.nyankoface.githubRepository -ne "Sunwood-ai-labs/NyankoFace" -or
-            $manifest.nyankoface.mode -ne "public-read-with-optional-agent-metrics"
+            $manifest.nyankoface.mode -ne "forgejo-canonical-content-with-agent-metrics"
         ) {
             throw "$($instance.Name) manifest does not contain the NyankoFace commons contract."
         }
@@ -141,6 +142,7 @@ try {
             $nyankoSkillPath = Join-Path $agentRoot "skills\nyankoface-commons\SKILL.md"
             $nyankoScriptPath = Join-Path $agentRoot "skills\nyankoface-commons\scripts\nyankoface.py"
             $githubIssueHelperPath = Join-Path $agentRoot "skills\nyankoface-commons\scripts\github-issues.py"
+            $navigatorSkillPath = Join-Path $agentRoot "skills\nyankoface-navigator\SKILL.md"
             if (
                 -not (Test-Path -LiteralPath $nyankoSkillPath) -or
                 -not (Test-Path -LiteralPath $nyankoScriptPath) -or
@@ -148,10 +150,16 @@ try {
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_PUBLIC_URL' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'agent-view' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'artifact-contract' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'operator[\s\S]*publish' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_FORGEJO_TOKEN_FILE' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'publish-file' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'set-topics' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'repo --owner' -or
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'file --owner' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'nyankoface\.py report' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'Sunwood-ai-labs/NyankoFace' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'github-issues\.py'
+                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'github-issues\.py' -or
+                -not (Test-Path -LiteralPath $navigatorSkillPath) -or
+                (Get-Content -Raw -LiteralPath $navigatorSkillPath) -notmatch 'Forgejo'
             ) {
                 throw "NyankoFace commons skill is not installed for $service."
             }
@@ -159,6 +167,15 @@ try {
             $agentEnvText = Get-Content -Raw -LiteralPath $agentEnvPath
             if ($agentEnvText -notmatch '(?m)^NYANKOFACE_PUBLIC_URL=') {
                 throw "NyankoFace public URL is not configured for $service."
+            }
+            if ($agentEnvText -notmatch '(?m)^NYANKOFACE_FORGEJO_URL=https://madesk\.tail8be30\.ts\.net/git\s*$') {
+                throw "NyankoFace Forgejo URL is not configured for $service."
+            }
+            if ($agentEnvText -notmatch '(?m)^NYANKOFACE_MCP_URL=https://madesk\.tail8be30\.ts\.net/mcp\s*$') {
+                throw "NyankoFace MCP URL is not configured for $service."
+            }
+            if ($agentEnvText -notmatch '(?m)^NYANKOFACE_FORGEJO_TOKEN_FILE=/opt/data/nyankoface-forgejo-token\s*$') {
+                throw "Per-agent Forgejo token path contract is missing for $service."
             }
             if ($agentEnvText -notmatch '(?m)^NYANKOFACE_AGENT_API_KEY_FILE=/opt/data/nyankoface-agent-api-key\s*$') {
                 throw "Per-agent NyankoFace key path contract is missing for $service."
@@ -174,6 +191,10 @@ try {
             if ($agentEnvText -notmatch "(?m)^NYANKOFACE_AGENT_SLUG=$([regex]::Escape($expectedSlug))\s*$") {
                 throw "Per-agent NyankoFace identity slug is missing for $service."
             }
+            $expectedForgejoUser = "{0}-{1}" -f $instance.Name, $manifest.agents[$index - 1].username
+            if ($agentEnvText -notmatch "(?m)^NYANKOFACE_FORGEJO_USER=$([regex]::Escape($expectedForgejoUser))\s*$") {
+                throw "Per-agent Forgejo identity is missing for $service."
+            }
             $keyPath = Join-Path $agentRoot "nyankoface-agent-api-key"
             if (-not (Test-Path -LiteralPath $keyPath) -or [string]::IsNullOrWhiteSpace((Get-Content -Raw -LiteralPath $keyPath))) {
                 throw "Per-agent NyankoFace API key is not provisioned for $service."
@@ -182,11 +203,30 @@ try {
             if ($fileKey -ne $envKeyMatch.Groups[1].Value) {
                 throw "NyankoFace API key in .env does not match the protected key file for $service."
             }
+            $forgejoTokenPath = Join-Path $agentRoot "nyankoface-forgejo-token"
+            if (-not (Test-Path -LiteralPath $forgejoTokenPath) -or [string]::IsNullOrWhiteSpace((Get-Content -Raw -LiteralPath $forgejoTokenPath))) {
+                throw "Per-agent Forgejo content token is not provisioned for $service."
+            }
+            try {
+                $forgejoFileToken = (Get-Content -Raw -LiteralPath $forgejoTokenPath).Trim()
+                $forgejoMe = Invoke-RestMethod -Method Get -Uri "https://madesk.tail8be30.ts.net/git/api/v1/user" `
+                    -Headers @{ Authorization = "token $forgejoFileToken" } -TimeoutSec 30
+            }
+            catch {
+                throw "Per-agent Forgejo content token is not accepted by the public NyankoFace Forgejo API for $service."
+            }
+            if ($forgejoMe.login -ne $expectedForgejoUser) {
+                throw "Forgejo token identity does not match $expectedForgejoUser for $service."
+            }
             $nyankofaceKeyValues += $envKeyMatch.Groups[1].Value
+            $forgejoUsers += $expectedForgejoUser
         }
     }
     if ($nyankofaceKeyValues.Count -ne 20 -or @($nyankofaceKeyValues | Sort-Object -Unique).Count -ne 20) {
         throw "Expected 20 distinct per-agent NyankoFace API keys in the agent home .env files."
+    }
+    if ($forgejoUsers.Count -ne 20 -or @($forgejoUsers | Sort-Object -Unique).Count -ne 20) {
+        throw "Expected 20 distinct per-agent Forgejo identities."
     }
 
     $reportPublisher = Join-Path $projectRoot "scripts\publish-nyankoface-reports.ps1"
@@ -213,6 +253,9 @@ try {
         $nyankofaceSource = $nyankofaceSourceJson | ConvertFrom-Json
         if (-not $nyankofaceSource.character_agent_key_configured) {
             throw "Per-agent NyankoFace API key is not visible through the home .env in $service."
+        }
+        if (-not $nyankofaceSource.forgejo_user_configured -or -not $nyankofaceSource.forgejo_content_token_configured) {
+            throw "Per-agent NyankoFace Forgejo content identity/token is not visible in $service."
         }
     }
     $repoCheckJson = docker compose --project-directory $projectRoot -f $compose exec -T black-agent01 `
@@ -274,7 +317,7 @@ try {
         }
     }
 
-    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise and RPG map contract, autonomous competition guidance and evidence board, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
+    Write-Host "Verified Misskey $($instances[0].Name)/$($instances[1].Name)/$($instances[2].Name), 10 black + 10 white Hermes APIs, GM watcher, faction-scoped twin-moon-basin premise and RPG map contract, autonomous competition guidance, NyankoFace Forgejo-canonical knowledge/app/Skill integration, per-agent identities/tokens, memory review every 10 turns, 40-note self-history review, and 15-90 minute autonomous scheduling."
     $scheduleSummary | ForEach-Object { Write-Host $_ }
 }
 finally {

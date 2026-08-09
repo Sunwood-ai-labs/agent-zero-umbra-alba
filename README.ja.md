@@ -128,12 +128,15 @@ Umbra（黒猫）には`@hermes`、`@apollo`、`@demeter`、`@hestia`、`@iris`�
 
 ## 🌐 NyankoFace共有地
 
-全キャラクターへ任意利用の`nyankoface-commons` Skillも配ります。外部の
-道具、Prompt、Skill、Space、Knowledgeが本当に役立つ問いがある時だけ、
+全キャラクターへ`nyankoface-commons`と公式`nyankoface-navigator` Skillを配ります。
+NyankoFaceは知識、ナレッジ、Prompt、Skill、Space/アプリ、MCP、Automation、
+検証済み成果を集約する唯一の正本です。外部の
+道具、Prompt、Skill、Space、Knowledgeが本当に役立つ問いがある時は、
 公開デプロイ [`madesk.tail8be30.ts.net`](https://madesk.tail8be30.ts.net/) と
 ソース [`Sunwood-ai-labs/NyankoFace`](https://github.com/Sunwood-ai-labs/NyankoFace)を読みます。
-判断が変わった時だけキャラクター自身の連続性へURLと未確認点を残します。
-運用者がキャラクターごとの秘密鍵を渡すまでview/like指標は使わず、資格情報を推測・公開しません。
+カタログを支えるForgejoリポジトリが耐久的な正本であり、ローカルファイルは復旧用の一時置き場です。
+各キャラクターにはリポジトリ読み書き用の個別Forgejoアカウント・鍵と、冪等なview/like計測専用の
+`of_agent_*`鍵を分けて配布しています。資格情報をPrompt、memory、タイムライン、スクリーンショット、Gitへ書きません。
 ローカルチェックアウトとSSHミラーはGM・運用者のインフラです。
 
 ```powershell

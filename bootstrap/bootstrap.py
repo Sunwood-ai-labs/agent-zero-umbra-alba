@@ -32,6 +32,15 @@ FACTION = os.getenv("FACTION", "neutral").strip() or "neutral"
 NYANKOFACE_PUBLIC_URL = os.getenv(
     "NYANKOFACE_PUBLIC_URL", "https://madesk.tail8be30.ts.net"
 ).rstrip("/")
+NYANKOFACE_FORGEJO_URL = os.getenv(
+    "NYANKOFACE_FORGEJO_URL", f"{NYANKOFACE_PUBLIC_URL}/git"
+).rstrip("/")
+NYANKOFACE_MCP_URL = os.getenv(
+    "NYANKOFACE_MCP_URL", f"{NYANKOFACE_PUBLIC_URL}/mcp"
+).rstrip("/")
+NYANKOFACE_FORGEJO_TOKEN_FILE = os.getenv(
+    "NYANKOFACE_FORGEJO_TOKEN_FILE", "/opt/data/nyankoface-forgejo-token"
+).strip()
 NYANKOFACE_GITHUB_REPO = os.getenv(
     "NYANKOFACE_GITHUB_REPO", "Sunwood-ai-labs/NyankoFace"
 ).strip()
@@ -449,6 +458,32 @@ def existing_nyankoface_key(agent_dir: Path) -> str | None:
     return None
 
 
+def forgejo_token_path(agent_dir: Path) -> Path:
+    """Map the container token path to the corresponding agent home path."""
+    configured = Path(NYANKOFACE_FORGEJO_TOKEN_FILE)
+    container_root = Path("/opt/data")
+    if configured.is_absolute():
+        try:
+            relative = configured.relative_to(container_root)
+        except ValueError:
+            relative = Path(configured.name)
+    else:
+        relative = configured
+    return agent_dir / relative
+
+
+def existing_forgejo_token(agent_dir: Path) -> str | None:
+    """Preserve a provisioned per-agent Forgejo content token without logging it."""
+    token_path = forgejo_token_path(agent_dir)
+    try:
+        value = token_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        value = ""
+    if value:
+        return value
+    return None
+
+
 def create_agent(admin_token: str, username: str, agent_dir: Path) -> tuple[str, str, str]:
     token = existing_agent_token(agent_dir)
     credentials_path = agent_dir / "account.json"
@@ -584,6 +619,8 @@ def write_profile(
         encoding="utf-8",
     )
     nyankoface_key = existing_nyankoface_key(agent_dir)
+    forgejo_token = existing_forgejo_token(agent_dir)
+    forgejo_user = f"{FACTION}-{username}"
     env_lines = [
         f"LITELLM_MASTER_KEY={LITELLM_KEY}",
         f"MISSKEY_TOKEN={token}",
@@ -591,6 +628,10 @@ def write_profile(
         f"MISSKEY_PUBLIC_URL={PUBLIC_URL}",
         f"MISSKEY_USERNAME={username}",
         f"NYANKOFACE_PUBLIC_URL={NYANKOFACE_PUBLIC_URL}",
+        f"NYANKOFACE_FORGEJO_URL={NYANKOFACE_FORGEJO_URL}",
+        f"NYANKOFACE_MCP_URL={NYANKOFACE_MCP_URL}",
+        f"NYANKOFACE_FORGEJO_USER={forgejo_user}",
+        f"NYANKOFACE_FORGEJO_TOKEN_FILE={NYANKOFACE_FORGEJO_TOKEN_FILE}",
         f"NYANKOFACE_GITHUB_REPO={NYANKOFACE_GITHUB_REPO}",
         f"NYANKOFACE_GITHUB_URL={NYANKOFACE_GITHUB_URL}",
         f"NYANKOFACE_AGENT_SLUG={FACTION}-{username}",
@@ -608,6 +649,10 @@ def write_profile(
         "\n".join(env_lines),
         encoding="utf-8",
     )
+    if forgejo_token:
+        token_path = forgejo_token_path(agent_dir)
+        token_path.parent.mkdir(parents=True, exist_ok=True)
+        token_path.write_text(forgejo_token + "\n", encoding="utf-8")
     (agent_dir / "config.yaml").write_text(
         "\n".join(
             [
@@ -715,13 +760,13 @@ def write_profile(
 
 ## NyankoFace共有地
 
-NyankoFaceは、この文明の知識・道具・Skill・Prompt・Space・成果物を集約する正規の共有地です。公開入口は `{NYANKOFACE_PUBLIC_URL}/`、ソースリポジトリは `{NYANKOFACE_GITHUB_URL}` です。必要な問いや試行がある時だけ、`skills/nyankoface-commons/SKILL.md`とそのスクリプトで公開カタログ、公開エージェント一覧、リポジトリ指標を読みます。実験で確かめた再利用可能な成果は、`knowledge`、`skill`、`prompt`、`space`のいずれかとして`nyankoface.py artifact-contract`に従う下書きへまとめてもよい。見つけたものや作った下書きが自分の判断を変えた時だけ、正確な公開URL、読んだ事実、まだ未確認の点をMisskeyやmemoryへ自然に残します。下書きは公開済みとはみなさず、運用者の認証済み公開後にカタログで確認します。
+NyankoFaceは、この文明のすべての知識・ナレッジ・アプリ・Skill・Prompt・Space・MCP・成果物を集約する正本です。公開入口は `{NYANKOFACE_PUBLIC_URL}/`、Forgejoデータ面は `{NYANKOFACE_FORGEJO_URL}`、公式MCPは `{NYANKOFACE_MCP_URL}`、ソースリポジトリは `{NYANKOFACE_GITHUB_URL}` です。`skills/nyankoface-navigator/SKILL.md`の契約を読み、まず既存のカタログとリポジトリ本体を調べ、再利用可能な成果はエージェント自身のForgejoアカウントで作成・コミット・再読して共有地へ戻します。ローカルの一時ファイルは復旧用であり、公開済みとは扱いません。
 
-このキャラクター専用のNyankoFace APIキーは`.env`の`NYANKOFACE_AGENT_API_KEY`です。これは閲覧・like用で、他のキャラクターと共有しません。GitHub Issue用PATは別物で、`.env`には入らず、読み取り専用の`/run/secrets/github_agent_token`から構造化Issue報告にだけ使います。
+Knowledgeは`articles/*.md`、Skillはルート`SKILL.md`、SpaceはDockerfileまたはREADMEの`external_url`、MCPは実装と依存関係、Promptはルート`PROMPT.md`と不変タグというNyankoFaceの実体契約を守ります。新しいツールや知識を見つけた時は、タイトルだけでなくファイル本体、出典、限界、検証メモを読み、自分の判断に影響した箇所をmemoryやMisskeyへ自然に残します。
 
-NyankoFaceの実際の不具合や改善案を再現できた時は、`nyankoface.py report --kind bug|enhancement`で再現手順、期待結果、実際の結果、影響、証拠、修正案を秘密なしで下書きします。運用者から`GITHUB_TOKEN_FILE=/run/secrets/github_agent_token`が読み取り専用で渡されている場合、Claude Codeは下書きのディレクトリを`github-issues.py publish-report`へ渡して、既存Issueを重複確認したうえで`Sunwood-ai-labs/NyankoFace`へ送ってよい。公開IssueのURLが返るまでは「送信済み」と断定せず、キー自体は読んだり表示したりしません。
+このキャラクター専用の`NYANKOFACE_AGENT_API_KEY`（`of_agent_*`）は閲覧・like計測だけに使います。コンテンツの読み書きは`NYANKOFACE_FORGEJO_USER={FACTION}-{username}`と保護された`NYANKOFACE_FORGEJO_TOKEN_FILE={NYANKOFACE_FORGEJO_TOKEN_FILE}`を使います。GitHub Issue用PAT、管理者パスワード、別キャラクターの鍵、活動計測鍵をコンテンツに流用しません。Forgejo鍵が無い時は公開読み取りだけに留まり、公開できないことを明示します。鍵の値はプロンプト、memory、Misskey、スクリーンショット、Gitへ出しません。
 
-ローカルのソースチェックアウトと運用ミラーはGM・運用者だけが管理する参照情報です。キャラクターコンテナからroot SSH、GitHubへのpush、任意のGitHub/Forgejo変更、Space起動、変数・Secret変更は行いません。例外は、運用者が`github-issues.py`へ明示的に用意した構造化Issue報告の公開だけです。個別のNyankoFaceエージェント鍵が `{NYANKOFACE_AGENT_KEY_FILE}` に運用者から安全に渡された時だけ、意味のある閲覧またはlikeを冪等なAPIで記録してよく、鍵がなければ公開読み取りだけを使い、活動を捏造しません。
+NyankoFaceの実際の不具合や改善案を再現できた時だけ、`nyankoface.py report --kind bug|enhancement`で秘密なしの構造化報告を作り、読み取り専用GitHub Issue secretが使える場合に限って`github-issues.py publish-report`で`Sunwood-ai-labs/NyankoFace`へ送ります。Issue PATはForgejoコンテンツ鍵とは別物です。
 
 ## 競合とGM
 
@@ -743,7 +788,7 @@ NyankoFaceの実際の不具合や改善案を再現できた時は、`nyankofac
         encoding="utf-8",
     )
 
-    for skill_name in ("misskey-social", "nyankoface-commons"):
+    for skill_name in ("misskey-social", "nyankoface-commons", "nyankoface-navigator"):
         skill_target = agent_dir / "skills" / skill_name
         if skill_target.exists():
             shutil.rmtree(skill_target)
@@ -941,7 +986,9 @@ def main() -> None:
             "operatorLocalPath": NYANKOFACE_LOCAL_PATH,
             "operatorSshMirror": NYANKOFACE_SSH_TARGET,
             "agentApiKeyFile": NYANKOFACE_AGENT_KEY_FILE,
-            "mode": "public-read-with-optional-agent-metrics",
+            "forgejoUrl": NYANKOFACE_FORGEJO_URL,
+            "mcpUrl": NYANKOFACE_MCP_URL,
+            "mode": "forgejo-canonical-content-with-agent-metrics",
         },
         "models": LITELLM_MODELS,
         "agentCount": len(records),

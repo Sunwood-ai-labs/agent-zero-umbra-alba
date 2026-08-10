@@ -24,7 +24,7 @@ GITHUB_TOKEN_FILE = Path(
 )
 REPORT_KINDS = ("bug", "enhancement")
 REPORT_LIMIT = 256 * 1024
-ISSUE_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/issues/\d+$")
+ISSUE_URL = re.compile(r"^https://github\.com/Sunwood-ai-labs/NyankoFace/issues/\d+$")
 
 
 def read_token() -> str:
@@ -73,6 +73,26 @@ def write_metadata(path: Path, metadata: dict[str, object]) -> None:
     os.replace(temporary, path)
 
 
+def mark_publication_pending(report_dir: str, error: BaseException) -> None:
+    """Keep a secret-free reason when a pending Issue could not be published."""
+    try:
+        report_path = Path(report_dir).resolve() / "report.json"
+        metadata = json.loads(report_path.read_text(encoding="utf-8"))
+        if not isinstance(metadata, dict) or metadata.get("status") != "pending":
+            return
+        reason = REPORT_SECRET_VALUES.sub("[redacted]", str(error)).strip()
+        metadata.update(
+            {
+                "publication_error": reason[:500],
+                "publication_checked_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            }
+        )
+        write_metadata(report_path, metadata)
+    except (OSError, json.JSONDecodeError, TypeError):
+        # The original failure is more useful than a secondary metadata error.
+        return
+
+
 def read_report(report_dir: Path) -> tuple[Path, dict[str, object], str]:
     report_dir = report_dir.resolve()
     metadata_path = report_dir / "report.json"
@@ -101,12 +121,50 @@ def read_report(report_dir: Path) -> tuple[Path, dict[str, object], str]:
     return metadata_path, metadata, body
 
 
+def verify_issue(issue_number: int, expected_title: str, expected_url: str) -> dict[str, object]:
+    """Re-read the Issue so a create/search response is not treated as proof."""
+    verified = request_json(f"repos/{GITHUB_REPO}/issues/{issue_number}")
+    if not isinstance(verified, dict):
+        raise RuntimeError("GitHub Issue verification returned a non-object response")
+    try:
+        returned_number = int(verified["number"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("GitHub Issue verification returned an invalid Issue number") from exc
+    if returned_number != issue_number:
+        raise RuntimeError("GitHub Issue verification returned an unexpected Issue number")
+    if str(verified.get("html_url", "")) != expected_url:
+        raise RuntimeError("GitHub Issue verification returned an unexpected URL")
+    if str(verified.get("title", "")) != expected_title:
+        raise RuntimeError("GitHub Issue verification returned an unexpected title")
+    if str(verified.get("state", "")) not in {"open", "closed"}:
+        raise RuntimeError("GitHub Issue verification did not return a valid state")
+    return verified
+
+
 def publish_report(args: argparse.Namespace) -> None:
     report_dir = Path(args.report_dir)
     metadata_path, metadata, body = read_report(report_dir)
     status = str(metadata["status"])
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
     if status in ("published", "duplicate"):
-        print(json.dumps({"status": status, "issue_url": metadata.get("issue_url")}, ensure_ascii=False))
+        try:
+            issue_number = int(metadata["issue_number"])
+            issue_url = str(metadata["issue_url"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("stored Issue metadata is incomplete; refusing to trust published status") from exc
+        if not ISSUE_URL.fullmatch(issue_url):
+            raise RuntimeError("stored Issue metadata contains an unexpected URL")
+        verified = verify_issue(issue_number, str(metadata["title"]), issue_url)
+        metadata.update({"issue_state": verified["state"], "verified_at": now})
+        metadata.pop("publication_error", None)
+        metadata.pop("publication_checked_at", None)
+        write_metadata(metadata_path, metadata)
+        print(
+            json.dumps(
+                {"status": status, "issue_url": issue_url, "issue_state": verified["state"]},
+                ensure_ascii=False,
+            )
+        )
         return
 
     title = str(metadata["title"])
@@ -116,19 +174,30 @@ def publish_report(args: argparse.Namespace) -> None:
     search = request_json(f"search/issues?{query}")
     items = search.get("items", []) if isinstance(search, dict) else []
     duplicates = [item for item in items if isinstance(item, dict) and item.get("title") == title]
-    now = dt.datetime.now(dt.timezone.utc).isoformat()
     if duplicates:
         match = duplicates[0]
+        try:
+            issue_number = int(match["number"])
+            issue_url = str(match["html_url"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("GitHub duplicate search returned an invalid Issue") from exc
+        if not ISSUE_URL.fullmatch(issue_url):
+            raise RuntimeError("GitHub duplicate search returned an unexpected Issue URL")
+        verified = verify_issue(issue_number, title, issue_url)
         metadata.update(
             {
                 "status": "duplicate",
-                "issue_number": match.get("number"),
-                "issue_url": match.get("html_url"),
+                "issue_number": issue_number,
+                "issue_url": issue_url,
+                "issue_state": verified["state"],
                 "duplicate_checked_at": now,
+                "verified_at": now,
             }
         )
+        metadata.pop("publication_error", None)
+        metadata.pop("publication_checked_at", None)
         write_metadata(metadata_path, metadata)
-        print(json.dumps({"status": "duplicate", "issue_url": match.get("html_url")}, ensure_ascii=False))
+        print(json.dumps({"status": "duplicate", "issue_url": issue_url, "issue_state": verified["state"]}, ensure_ascii=False))
         return
 
     created = request_json(
@@ -138,16 +207,26 @@ def publish_report(args: argparse.Namespace) -> None:
     )
     if not isinstance(created, dict) or not ISSUE_URL.fullmatch(str(created.get("html_url", ""))):
         raise RuntimeError("GitHub returned an unexpected Issue URL")
+    try:
+        issue_number = int(created["number"])
+        issue_url = str(created["html_url"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("GitHub returned an invalid Issue number") from exc
+    verified = verify_issue(issue_number, title, issue_url)
     metadata.update(
         {
             "status": "published",
-            "issue_number": created.get("number"),
-            "issue_url": created.get("html_url"),
+            "issue_number": issue_number,
+            "issue_url": issue_url,
+            "issue_state": verified["state"],
             "published_at": now,
+            "verified_at": now,
         }
     )
+    metadata.pop("publication_error", None)
+    metadata.pop("publication_checked_at", None)
     write_metadata(metadata_path, metadata)
-    print(json.dumps({"status": "published", "issue_url": created["html_url"]}, ensure_ascii=False))
+    print(json.dumps({"status": "published", "issue_url": issue_url, "issue_state": verified["state"]}, ensure_ascii=False))
 
 
 def token_status(_: argparse.Namespace) -> None:
@@ -195,6 +274,8 @@ def main() -> None:
     try:
         args.handler(args)
     except RuntimeError as exc:
+        if args.command == "publish-report":
+            mark_publication_pending(args.report_dir, exc)
         print(str(exc), file=sys.stderr)
         raise SystemExit(2) from exc
 

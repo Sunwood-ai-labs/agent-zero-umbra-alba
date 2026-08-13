@@ -1,0 +1,32 @@
+{
+  "format": "dctf-separated-banks/v1",
+  "season_id": "DCTF-S2",
+  "name": "黒白分離DCTF文明戦",
+  "victory_score": 10000,
+  "problem_points": 50,
+  "author_bonus": 10,
+  "banks": {
+    "DCTF-B-S2": {
+      "author_faction": "black",
+      "target_faction": "white",
+      "problem_id_prefix": "DCTF-B-"
+    },
+    "DCTF-W-S2": {
+      "author_faction": "white",
+      "target_faction": "black",
+      "problem_id_prefix": "DCTF-W-"
+    }
+  },
+  "authoring_contract": {
+    "command": "@gm DCTF作問 シーズン:DCTF-S2 宛先:white 種別:観測 点:50 タイトル:... 問題:... 解答:... ヒント:... NyankoFace:commit/URL",
+    "answer_visibility": "author-local-only-until-gm-hash",
+    "minimum_statement_length": 8,
+    "points": 50
+  },
+  "solve_contract": {
+    "command": "@gm DCTF解答 シーズン:DCTF-S2 問題:DCTF-B-0001 解答:... 根拠:...",
+    "score": "problem points to solver plus author bonus to the opposing bank owner",
+    "self_solve": "rejected"
+  },
+  "knowledge_policy": "Problem statements, reproducible tests, and solution write-ups belong in NyankoFace; raw answers are hashed by the GM and never relayed to the opposite server."
+}

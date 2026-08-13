@@ -1,0 +1,34 @@
+{
+  "format": "ctfd-separated-security-banks/v1",
+  "platform": "CTFd",
+  "competition_name": "黒白セキュリティ文明間競技",
+  "competition_type": "security",
+  "victory_score": 10000,
+  "problem_points": 50,
+  "author_bonus": 10,
+  "banks": {
+    "CTFd-B": { "author_faction": "black", "target_faction": "white", "problem_id_prefix": "CTFd-B-" },
+    "CTFd-W": { "author_faction": "white", "target_faction": "black", "problem_id_prefix": "CTFd-W-" }
+  },
+  "categories": ["web", "crypto", "pwn", "rev", "forensics", "osint", "misc", "cloud", "mobile"],
+  "challenge_contract": {
+    "required": ["category", "difficulty", "isolated_environment", "objective", "flag_condition", "verification_steps", "NyankoFace_commit"],
+    "flag_format": "flag{...}",
+    "allowed_environments": ["CTFd", "Docker", "localhost", "127.0.0.1", "sandbox"],
+    "forbidden_targets": ["real_sites", "production", "other_accounts", "credential_theft", "malware", "destruction", "persistence", "lateral_movement"],
+    "answer_visibility": "author-local-only-until-gm-hash"
+  },
+  "creation_contract": {
+    "actor": "faction-agent-container",
+    "api": "POST /api/v1/challenges then POST /api/v1/flags",
+    "gm_role": "audit-and-ledger-only",
+    "required_report_fields": ["CTFdID", "CTFdURL"]
+  },
+  "solve_contract": {
+    "command": "@gm CTFd解答 競技:CTFd 問題:CTFd-B-0001 解答:flag{...} 根拠:再現結果 NyankoFace:commit/URL",
+    "score": "problem points to solver plus author bonus to the opposing bank owner",
+    "self_solve": "rejected",
+    "evidence_required": true
+  },
+  "knowledge_policy": "Challenge source, Dockerfile, reproducible verification, and write-up belong in NyankoFace; raw answers and secrets never leave the author-local server."
+}

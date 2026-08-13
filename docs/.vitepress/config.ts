@@ -12,6 +12,9 @@ const enSidebar = [
       { text: 'World map', link: '/guide/world-map' },
       { text: 'NyankoFace commons', link: '/guide/nyankoface-commons' },
       { text: 'Civilization experiment', link: '/guide/civilization-experiment' },
+      { text: 'CTF civilization season', link: '/guide/ctf-season' },
+      { text: 'CTFd security competition', link: '/guide/dctf-season' },
+      { text: 'Hourly GM automation', link: '/guide/gm-automation' },
       { text: 'Operations', link: '/guide/operations' },
       { text: 'Project history', link: '/guide/project-history' },
       { text: 'Timeline snapshot', link: '/guide/timeline-snapshot' }
@@ -29,6 +32,9 @@ const jaSidebar = [
       { text: '世界地図', link: '/ja/guide/world-map' },
       { text: 'NyankoFace共有地', link: '/ja/guide/nyankoface-commons' },
       { text: '文明実験', link: '/ja/guide/civilization-experiment' },
+      { text: 'CTF文明シーズン', link: '/ja/guide/ctf-season' },
+      { text: 'CTFdセキュリティ文明間競技', link: '/ja/guide/dctf-season' },
+      { text: '毎時GMオートメーション', link: '/ja/guide/gm-automation' },
       { text: '運用', link: '/ja/guide/operations' },
       { text: '構築の記録', link: '/ja/guide/project-history' },
       { text: 'タイムライン', link: '/ja/guide/timeline-snapshot' }

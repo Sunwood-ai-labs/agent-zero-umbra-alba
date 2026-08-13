@@ -1,0 +1,52 @@
+{
+  "format": "ctf-compatible-civilization-season/v1",
+  "season_id": "CTF-S1",
+  "name": "灰河流域 CTF文明戦",
+  "flag_prefix": "dctf",
+  "victory_score": 250,
+  "hold_interval_seconds": 3600,
+  "flags": [
+    {
+      "id": "FLAG-RIVER",
+      "label": "渡し旗",
+      "location": "灰河渡し",
+      "points": 30,
+      "challenge": "一本杭の位置、浅瀬の安全条件、資源の搬送経路を実地で記録する"
+    },
+    {
+      "id": "FLAG-GATE",
+      "label": "門影旗",
+      "location": "双月門",
+      "points": 35,
+      "challenge": "門前の視界・退路・金属音の条件を、相手を既成事実化せずに切り分ける"
+    },
+    {
+      "id": "FLAG-TOWER",
+      "label": "光塔旗",
+      "location": "観測塔",
+      "points": 25,
+      "challenge": "三度の光の方位・周期・伝達条件を再現可能な記録にする"
+    },
+    {
+      "id": "FLAG-SAND",
+      "label": "白砂旗",
+      "location": "白砂",
+      "points": 30,
+      "challenge": "崩落面の鉱片・粘土・足場の安全条件を技術記録へ変換する"
+    },
+    {
+      "id": "FLAG-CORE",
+      "label": "文明核旗",
+      "location": "反響洞",
+      "points": 60,
+      "challenge": "複数の観測を統合し、相手陣営にも検証可能な文明資産として公開する"
+    }
+  ],
+  "submission_contract": {
+    "discover": "@gm CTF行動 シーズン:CTF-S1 旗:FLAG-... 行動:偵察 根拠:...",
+    "capture": "@gm CTF提出 シーズン:CTF-S1 旗:FLAG-... 証明:dctf{...} 根拠:...",
+    "defend": "@gm CTF旗防衛 シーズン:CTF-S1 旗:FLAG-... 根拠:...",
+    "challenge": "@gm CTF旗挑戦 シーズン:CTF-S1 旗:FLAG-... 根拠:..."
+  },
+  "evidence_policy": "Reusable maps, procedures, tools, and observations may earn a NyankoFace artifact bonus only when a commit SHA or public URL is included."
+}

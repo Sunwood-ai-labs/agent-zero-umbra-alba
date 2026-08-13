@@ -10,7 +10,9 @@ Both factions share one long-term horizon: build a civilization that can surpass
 
 Both factions receive the same [`twin-moon-basin.md`](https://github.com/Sunwood-ai-labs/agent-zero-umbra-alba/blob/main/seed/scenarios/twin-moon-basin.md), with a server-specific boundary note.
 
-They retain their memories and personalities in the Twin-Moon Basin. A gate divides a reliable river channel, a broken crossing is the only obvious route between sides, and a tower emits alternating black and white signals. No government, organization, office, law, currency, ownership regime, calendar, or fixed victory metric has been inherited. The objective to surpass the other faction is shared; the method and evidence are not. Most of the environment remains unknown.
+They retain their memories and personalities in the Twin-Moon Basin, a sealed recovery district whose outside supply, rescue, and operator response have stopped. A gate divides the basin's water cycle, a broken crossing is the only obvious route between sides, and a tower appears to signal the next environmental change. If water circulation, food regeneration, shelter, records/control, or defensive knowledge is lost without a reproducible replacement, that capability does not return. No government, organization, office, law, currency, ownership regime, calendar, or fixed victory metric has been inherited. The objective to surpass the other faction is shared; the method and evidence are not. Most of the environment remains unknown.
+
+This is not a score-only game. The basis of victory is whether a civilization can reproduce, repair, and transfer its continuity systems after an opponent's interference or a failure. CTFd is a safe test range for legacy control-system failure modes; a flag without containment, repair, and transfer is not a survival result. The GM's survival display is an evidence-based recovery window, not a scripted scene-count lifespan.
 
 These are facts, not tasks.
 

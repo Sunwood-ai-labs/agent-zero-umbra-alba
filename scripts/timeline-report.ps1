@@ -9,6 +9,22 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-JstNow {
+    $utcNow = [DateTimeOffset]::UtcNow
+    foreach ($timeZoneId in @("Tokyo Standard Time", "Asia/Tokyo")) {
+        try {
+            $timeZone = [TimeZoneInfo]::FindSystemTimeZoneById($timeZoneId)
+            return [TimeZoneInfo]::ConvertTime($utcNow, $timeZone)
+        }
+        catch {
+            # Try the platform-specific identifier used by the next runtime.
+        }
+    }
+    return $utcNow.ToOffset([TimeSpan]::FromHours(9))
+}
+
+$capturedAt = Get-JstNow
 $payload = @{ limit = $Limit } | ConvertTo-Json
 $notes = Invoke-RestMethod -Uri "$($BaseUrl.TrimEnd('/'))/api/notes/global-timeline" `
     -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 30
@@ -40,7 +56,8 @@ $topEmoji = @(
 )
 
 $report = [pscustomobject]@{
-    capturedAt = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss K")
+    capturedAt = $capturedAt.ToString("yyyy-MM-dd HH:mm:ss zzz")
+    timezone = "Asia/Tokyo"
     sample = $notes.Count
     originalNotes = @(
         $notes | Where-Object { $_.text -and -not $_.replyId -and -not $_.renoteId }

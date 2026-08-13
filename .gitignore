@@ -1,6 +1,8 @@
 .env
 .env.*
 !.env.example
+!.env.dctf.example
+!.env.litellm.example
 runtime/
 db/
 redis/

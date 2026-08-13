@@ -1,5 +1,8 @@
 name: agent-zero-umbra-alba
 
+include:
+  - path: ./dctf/compose.yaml
+
 secrets:
   github_agent_token:
     file: ${GITHUB_AGENT_TOKEN_FILE:-../.menv/github-agent-token}
@@ -56,6 +59,38 @@ x-agent: &agent
     - github_agent_token
 
 services:
+  litellm:
+    build:
+      context: ./litellm
+      dockerfile: Dockerfile
+      args:
+        LITELLM_TAG: ${LITELLM_TAG:-v1.93.0}
+    image: agent-zero-umbra-alba-litellm:${LITELLM_TAG:-v1.93.0}
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    env_file:
+      - path: ${LITELLM_PROVIDER_ENV_FILE:-.env.litellm}
+        required: false
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+    ports:
+      - "127.0.0.1:${LITELLM_HOST_PORT:-4002}:4000"
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+    restart: unless-stopped
+    networks: [world-net, black-net, white-net]
+
   world-db:
     <<: *db
     volumes: ["./runtime/instances/world/db:/var/lib/postgresql"]
@@ -99,7 +134,9 @@ services:
   world-bootstrap:
     image: python:3.12-alpine
     restart: "no"
-    depends_on: {world-misskey: {condition: service_started}}
+    depends_on:
+      world-misskey: {condition: service_started}
+      litellm: {condition: service_healthy}
     environment:
       MISSKEY_URL: http://world-misskey:3000
       MISSKEY_PUBLIC_URL: ${WORLD_PUBLIC_URL:-http://localhost:3310}
@@ -110,6 +147,12 @@ services:
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: world
       AGENT_INDICES: ""
+      GM_CTF_SEASON_ID: ${GM_CTF_SEASON_ID:-CTF-S1}
+      GM_CTFD_ID: ${GM_CTFD_ID:-CTFd}
+      GM_CTFD_SECURITY_MODE: ${GM_CTFD_SECURITY_MODE:-true}
+      GM_CTFD_MIN_DIFFICULTY: ${GM_CTFD_MIN_DIFFICULTY:-hard}
+      GM_CTFD_MIN_STAGES: ${GM_CTFD_MIN_STAGES:-3}
+      GM_CTFD_MAX_PROBLEMS_PER_FACTION: ${GM_CTFD_MAX_PROBLEMS_PER_FACTION:-8}
       NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
       NYANKOFACE_MCP_URL: ${NYANKOFACE_MCP_URL:-https://madesk.tail8be30.ts.net/mcp}
@@ -169,7 +212,9 @@ services:
   black-bootstrap:
     image: python:3.12-alpine
     restart: "no"
-    depends_on: {black-misskey: {condition: service_started}}
+    depends_on:
+      black-misskey: {condition: service_started}
+      litellm: {condition: service_healthy}
     environment:
       MISSKEY_URL: http://black-misskey:3000
       MISSKEY_PUBLIC_URL: ${BLACK_PUBLIC_URL:-http://localhost:3311}
@@ -180,6 +225,13 @@ services:
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: black
       AGENT_INDICES: "1,3,5,7,9,11,13,15,17,19"
+      CTFD_BASE_URL: ${BLACK_CTFD_BASE_URL:-http://dctf-black:8000}
+      GM_CTF_SEASON_ID: ${GM_CTF_SEASON_ID:-CTF-S1}
+      GM_CTFD_ID: ${GM_CTFD_ID:-CTFd}
+      GM_CTFD_SECURITY_MODE: ${GM_CTFD_SECURITY_MODE:-true}
+      GM_CTFD_MIN_DIFFICULTY: ${GM_CTFD_MIN_DIFFICULTY:-hard}
+      GM_CTFD_MIN_STAGES: ${GM_CTFD_MIN_STAGES:-3}
+      GM_CTFD_MAX_PROBLEMS_PER_FACTION: ${GM_CTFD_MAX_PROBLEMS_PER_FACTION:-8}
       NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
       NYANKOFACE_MCP_URL: ${NYANKOFACE_MCP_URL:-https://madesk.tail8be30.ts.net/mcp}
@@ -239,7 +291,9 @@ services:
   white-bootstrap:
     image: python:3.12-alpine
     restart: "no"
-    depends_on: {white-misskey: {condition: service_started}}
+    depends_on:
+      white-misskey: {condition: service_started}
+      litellm: {condition: service_healthy}
     environment:
       MISSKEY_URL: http://white-misskey:3000
       MISSKEY_PUBLIC_URL: ${WHITE_PUBLIC_URL:-http://localhost:3312}
@@ -250,6 +304,13 @@ services:
       LITELLM_MODELS: ${LITELLM_MODELS:-glm-5.2,glm-4.7}
       FACTION: white
       AGENT_INDICES: "2,4,6,8,10,12,14,16,18,20"
+      CTFD_BASE_URL: ${WHITE_CTFD_BASE_URL:-http://dctf-white:8000}
+      GM_CTF_SEASON_ID: ${GM_CTF_SEASON_ID:-CTF-S1}
+      GM_CTFD_ID: ${GM_CTFD_ID:-CTFd}
+      GM_CTFD_SECURITY_MODE: ${GM_CTFD_SECURITY_MODE:-true}
+      GM_CTFD_MIN_DIFFICULTY: ${GM_CTFD_MIN_DIFFICULTY:-hard}
+      GM_CTFD_MIN_STAGES: ${GM_CTFD_MIN_STAGES:-3}
+      GM_CTFD_MAX_PROBLEMS_PER_FACTION: ${GM_CTFD_MAX_PROBLEMS_PER_FACTION:-8}
       NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
       NYANKOFACE_MCP_URL: ${NYANKOFACE_MCP_URL:-https://madesk.tail8be30.ts.net/mcp}
@@ -306,6 +367,8 @@ services:
       HERMES_API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
       AGENTS: black-agent01,black-agent02,black-agent03,black-agent04,black-agent05,black-agent06,black-agent07,black-agent08,black-agent09,black-agent10
       FACTION: 黒猫
+      FACTION_ID: black
+      MISSKEY_BASE_URL: http://black-misskey:3000
       RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-15}
       RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-90}
       RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-30}
@@ -314,6 +377,18 @@ services:
       CONFLICT_HINT_EVERY: ${CONFLICT_HINT_EVERY:-3}
       NYANKOFACE_HINT_EVERY: ${NYANKOFACE_HINT_EVERY:-10}
       HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-black-v1}
+      HERMES_MAX_CONCURRENT_REQUESTS: ${HERMES_MAX_CONCURRENT_REQUESTS:-1}
+      HERMES_REQUEST_TIMEOUT_SECONDS: ${HERMES_REQUEST_TIMEOUT_SECONDS:-900}
+      HERMES_RATE_LIMIT_BACKOFF_SECONDS: ${HERMES_RATE_LIMIT_BACKOFF_SECONDS:-3600}
+      HERMES_RATE_LIMIT_STAGGER_SECONDS: ${HERMES_RATE_LIMIT_STAGGER_SECONDS:-900}
+      CTFD_QUEUE_POLL_SECONDS: ${CTFD_QUEUE_POLL_SECONDS:-30}
+      CTFD_SOLVER_RETRY_SECONDS: ${CTFD_SOLVER_RETRY_SECONDS:-900}
+      CTFD_SOLVER_START_DELAY_SECONDS: ${CTFD_BLACK_SOLVER_START_DELAY_SECONDS:-0}
+      GM_CTFD_ID: ${GM_CTFD_ID:-CTFd}
+      GM_CTFD_SECURITY_MODE: ${GM_CTFD_SECURITY_MODE:-true}
+      GM_CTFD_MIN_DIFFICULTY: ${GM_CTFD_MIN_DIFFICULTY:-hard}
+      GM_CTFD_MIN_STAGES: ${GM_CTFD_MIN_STAGES:-3}
+      GM_CTFD_MAX_PROBLEMS_PER_FACTION: ${GM_CTFD_MAX_PROBLEMS_PER_FACTION:-8}
       NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
       NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
@@ -340,6 +415,8 @@ services:
       HERMES_API_SERVER_KEY: ${HERMES_API_SERVER_KEY}
       AGENTS: white-agent01,white-agent02,white-agent03,white-agent04,white-agent05,white-agent06,white-agent07,white-agent08,white-agent09,white-agent10
       FACTION: 白猫
+      FACTION_ID: white
+      MISSKEY_BASE_URL: http://white-misskey:3000
       RANDOM_INTERVAL_MINUTES_MIN: ${RANDOM_INTERVAL_MINUTES_MIN:-15}
       RANDOM_INTERVAL_MINUTES_MAX: ${RANDOM_INTERVAL_MINUTES_MAX:-90}
       RANDOM_FAST_MAX_MINUTES: ${RANDOM_FAST_MAX_MINUTES:-30}
@@ -348,6 +425,18 @@ services:
       CONFLICT_HINT_EVERY: ${CONFLICT_HINT_EVERY:-3}
       NYANKOFACE_HINT_EVERY: ${NYANKOFACE_HINT_EVERY:-10}
       HERMES_SESSION_NAMESPACE: ${HERMES_SESSION_NAMESPACE:-agent-zero-white-v1}
+      HERMES_MAX_CONCURRENT_REQUESTS: ${HERMES_MAX_CONCURRENT_REQUESTS:-1}
+      HERMES_REQUEST_TIMEOUT_SECONDS: ${HERMES_REQUEST_TIMEOUT_SECONDS:-900}
+      HERMES_RATE_LIMIT_BACKOFF_SECONDS: ${HERMES_RATE_LIMIT_BACKOFF_SECONDS:-3600}
+      HERMES_RATE_LIMIT_STAGGER_SECONDS: ${HERMES_RATE_LIMIT_STAGGER_SECONDS:-900}
+      CTFD_QUEUE_POLL_SECONDS: ${CTFD_QUEUE_POLL_SECONDS:-30}
+      CTFD_SOLVER_RETRY_SECONDS: ${CTFD_SOLVER_RETRY_SECONDS:-900}
+      CTFD_SOLVER_START_DELAY_SECONDS: ${CTFD_WHITE_SOLVER_START_DELAY_SECONDS:-900}
+      GM_CTFD_ID: ${GM_CTFD_ID:-CTFd}
+      GM_CTFD_SECURITY_MODE: ${GM_CTFD_SECURITY_MODE:-true}
+      GM_CTFD_MIN_DIFFICULTY: ${GM_CTFD_MIN_DIFFICULTY:-hard}
+      GM_CTFD_MIN_STAGES: ${GM_CTFD_MIN_STAGES:-3}
+      GM_CTFD_MAX_PROBLEMS_PER_FACTION: ${GM_CTFD_MAX_PROBLEMS_PER_FACTION:-8}
       NYANKOFACE_PUBLIC_URL: ${NYANKOFACE_PUBLIC_URL:-https://madesk.tail8be30.ts.net}
       NYANKOFACE_GITHUB_REPO: ${NYANKOFACE_GITHUB_REPO:-Sunwood-ai-labs/NyankoFace}
       NYANKOFACE_FORGEJO_URL: ${NYANKOFACE_FORGEJO_URL:-https://madesk.tail8be30.ts.net/git}
@@ -364,6 +453,9 @@ services:
       world-bootstrap: {condition: service_completed_successfully}
       black-bootstrap: {condition: service_completed_successfully}
       white-bootstrap: {condition: service_completed_successfully}
+      world-misskey: {condition: service_healthy}
+      black-misskey: {condition: service_healthy}
+      white-misskey: {condition: service_healthy}
     environment:
       BLACK_URL: http://black-misskey:3000
       WHITE_URL: http://white-misskey:3000
@@ -373,6 +465,20 @@ services:
       GM_SCENE_INTERVAL_SECONDS: ${GM_SCENE_INTERVAL_SECONDS:-3600}
       GM_ACTION_WINDOW_SECONDS: ${GM_ACTION_WINDOW_SECONDS:-1800}
       GM_BATTLE_ROUNDS: ${GM_BATTLE_ROUNDS:-3}
+      GM_CTF_SEASON_ID: ${GM_CTF_SEASON_ID:-CTF-S1}
+      GM_CTF_SEASON_NAME: ${GM_CTF_SEASON_NAME:-灰河流域 CTF文明戦}
+      GM_CTF_VICTORY_SCORE: ${GM_CTF_VICTORY_SCORE:-250}
+      GM_CTF_HOLD_SECONDS: ${GM_CTF_HOLD_SECONDS:-3600}
+      GM_CTFD_ID: ${GM_CTFD_ID:-CTFd}
+      GM_CTFD_SECURITY_MODE: ${GM_CTFD_SECURITY_MODE:-true}
+      GM_CTFD_NAME: ${GM_CTFD_NAME:-黒白セキュリティ文明間競技}
+      GM_CTFD_MIN_DIFFICULTY: ${GM_CTFD_MIN_DIFFICULTY:-hard}
+      GM_CTFD_MIN_STAGES: ${GM_CTFD_MIN_STAGES:-3}
+      GM_CTFD_MAX_PROBLEMS_PER_FACTION: ${GM_CTFD_MAX_PROBLEMS_PER_FACTION:-8}
+      GM_CTFD_VICTORY_SCORE: ${GM_CTFD_VICTORY_SCORE:-10000}
+      GM_CTFD_PROBLEM_POINTS: ${GM_CTFD_PROBLEM_POINTS:-50}
+      GM_CTFD_AUTHOR_BONUS: ${GM_CTFD_AUTHOR_BONUS:-10}
+      GM_CTFD_SOLVER_NUDGE_SECONDS: ${GM_CTFD_SOLVER_NUDGE_SECONDS:-900}
     volumes:
       - ./gm:/app:ro
       - ./runtime/instances:/state

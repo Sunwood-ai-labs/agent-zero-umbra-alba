@@ -1,32 +1,14 @@
 [CmdletBinding()]
 param(
-    [string]$ContainerName = "open-webui-litellm",
-    [string]$OutputPath = (Join-Path (Split-Path $PSScriptRoot -Parent) ".env")
+    [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent),
+    [string]$EnvPath = (Join-Path (Split-Path $PSScriptRoot -Parent) ".env"),
+    [string]$ProviderEnvPath = (Join-Path (Split-Path $PSScriptRoot -Parent) ".env.litellm")
 )
 
 $ErrorActionPreference = "Stop"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker CLI was not found."
-}
-
-$containerJson = docker inspect $ContainerName 2>$null
-if ($LASTEXITCODE -ne 0 -or -not $containerJson) {
-    throw "LiteLLM container '$ContainerName' was not found."
-}
-
-$container = ($containerJson | ConvertFrom-Json)[0]
-$environment = @{}
-foreach ($entry in $container.Config.Env) {
-    $parts = $entry -split "=", 2
-    if ($parts.Count -eq 2) {
-        $environment[$parts[0]] = $parts[1]
-    }
-}
-
-$masterKey = $environment["LITELLM_MASTER_KEY"]
-if ([string]::IsNullOrWhiteSpace($masterKey)) {
-    throw "LITELLM_MASTER_KEY is not set in '$ContainerName'."
 }
 
 function New-RandomSecret {
@@ -41,41 +23,94 @@ function New-RandomSecret {
     return ([BitConverter]::ToString($bytes) -replace "-", "").ToLowerInvariant()
 }
 
-$values = [ordered]@{
-    WORLD_PUBLIC_URL = "http://localhost:3310"
-    BLACK_PUBLIC_URL = "http://localhost:3311"
-    WHITE_PUBLIC_URL = "http://localhost:3312"
-    POSTGRES_DB = "misskey"
-    POSTGRES_USER = "misskey"
-    POSTGRES_PASSWORD = (New-RandomSecret)
-    MISSKEY_SETUP_PASSWORD = (New-RandomSecret)
-    MISSKEY_ADMIN_USERNAME = "admin"
-    LITELLM_CONTAINER = $ContainerName
-    LITELLM_API_BASE = "http://host.docker.internal:4000/v1"
-    LITELLM_MODELS = "glm-5.2,glm-4.7"
-    LITELLM_MASTER_KEY = $masterKey
-    HERMES_API_SERVER_KEY = (New-RandomSecret)
-    RANDOM_INTERVAL_MINUTES_MIN = "15"
-    RANDOM_INTERVAL_MINUTES_MAX = "90"
-    RANDOM_FAST_MAX_MINUTES = "30"
-    RANDOM_FAST_PROBABILITY = "0.50"
-    RANDOM_INITIAL_MAX_SECONDS = "90"
-    HERMES_SESSION_NAMESPACE = "agent-zero-umbra-alba-v1"
-    GM_POLL_SECONDS = "10"
-}
+function Read-DotEnv {
+    param([string]$Path)
 
-if (Test-Path -LiteralPath $OutputPath) {
-    foreach ($line in [IO.File]::ReadAllLines($OutputPath)) {
-        if ($line -match "^\s*([^#=\s]+)=(.*)$" -and $values.Contains($Matches[1])) {
+    $values = @{}
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $values
+    }
+    foreach ($line in [IO.File]::ReadAllLines($Path)) {
+        if ($line -match '^\s*([^#=\s]+)=(.*)$') {
             $values[$Matches[1]] = $Matches[2]
         }
     }
-    # Always refresh the key from the live LiteLLM container.
-    $values["LITELLM_MASTER_KEY"] = $masterKey
+    return $values
 }
 
-$lines = foreach ($item in $values.GetEnumerator()) {
-    "$($item.Key)=$($item.Value)"
+function Set-DotEnvValues {
+    param(
+        [string]$Path,
+        [hashtable]$Values
+    )
+
+    $lines = @()
+    if (Test-Path -LiteralPath $Path) {
+        $lines = @([IO.File]::ReadAllLines($Path))
+    }
+    foreach ($name in $Values.Keys) {
+        $replacement = "$name=$($Values[$name])"
+        $replaced = $false
+        for ($index = 0; $index -lt $lines.Count; $index++) {
+            if ($lines[$index] -match "^\s*$([regex]::Escape($name))=") {
+                $lines[$index] = $replacement
+                $replaced = $true
+                break
+            }
+        }
+        if (-not $replaced) {
+            $lines += $replacement
+        }
+    }
+    [IO.File]::WriteAllLines($Path, $lines, [Text.UTF8Encoding]::new($false))
 }
-[IO.File]::WriteAllLines($OutputPath, $lines, [Text.UTF8Encoding]::new($false))
-Write-Host "Imported the LiteLLM master key into .env without displaying it."
+
+if (-not (Test-Path -LiteralPath $EnvPath)) {
+    $examplePath = Join-Path $ProjectRoot ".env.example"
+    if (-not (Test-Path -LiteralPath $examplePath)) {
+        throw ".env and .env.example are both missing."
+    }
+    Copy-Item -LiteralPath $examplePath -Destination $EnvPath
+}
+
+$envValues = Read-DotEnv -Path $EnvPath
+$generatedValues = @{}
+foreach ($name in @("POSTGRES_PASSWORD", "MISSKEY_SETUP_PASSWORD", "HERMES_API_SERVER_KEY")) {
+    if ([string]::IsNullOrWhiteSpace($envValues[$name]) -or $envValues[$name] -match '^replace-with-') {
+        $generatedValues[$name] = New-RandomSecret
+    }
+}
+if ([string]::IsNullOrWhiteSpace($envValues["LITELLM_MASTER_KEY"]) -or $envValues["LITELLM_MASTER_KEY"] -match '^replace-with-') {
+    $generatedValues["LITELLM_MASTER_KEY"] = "sk-$([guid]::NewGuid().ToString('N'))$(New-RandomSecret)"
+}
+$generatedValues["LITELLM_CONTAINER"] = "agent-zero-umbra-alba-litellm"
+$generatedValues["LITELLM_API_BASE"] = "http://litellm:4000/v1"
+$generatedValues["LITELLM_PROVIDER_ENV_FILE"] = ".env.litellm"
+$generatedValues["LITELLM_HOST_PORT"] = if ([string]::IsNullOrWhiteSpace($envValues["LITELLM_HOST_PORT"])) { "4002" } else { $envValues["LITELLM_HOST_PORT"] }
+$generatedValues["LITELLM_TAG"] = if ([string]::IsNullOrWhiteSpace($envValues["LITELLM_TAG"])) { "v1.93.0" } else { $envValues["LITELLM_TAG"] }
+Set-DotEnvValues -Path $EnvPath -Values $generatedValues
+
+if (-not (Test-Path -LiteralPath $ProviderEnvPath)) {
+    $providerExamplePath = Join-Path $ProjectRoot ".env.litellm.example"
+    if (-not (Test-Path -LiteralPath $providerExamplePath)) {
+        throw "LiteLLM provider env is missing: $ProviderEnvPath"
+    }
+    Copy-Item -LiteralPath $providerExamplePath -Destination $ProviderEnvPath
+    throw "Created '$ProviderEnvPath' from the template. Fill the provider key(s) and run start.ps1 again."
+}
+
+$providerValues = Read-DotEnv -Path $ProviderEnvPath
+$models = (Read-DotEnv -Path $EnvPath)["LITELLM_MODELS"] -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+if (($models | Where-Object { $_ -match '^glm-' }).Count -gt 0 -and [string]::IsNullOrWhiteSpace($providerValues["ZAI_API_KEY"])) {
+    throw "ZAI_API_KEY is required in '$ProviderEnvPath' for the configured GLM models."
+}
+
+foreach ($path in @($EnvPath, $ProviderEnvPath)) {
+    $relativePath = Resolve-Path -LiteralPath $path -Relative
+    git -C $ProjectRoot check-ignore --quiet -- $relativePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Secret-bearing file is not ignored by Git: $path"
+    }
+}
+
+Write-Host "Local LiteLLM configuration is ready. Provider credentials were not displayed."

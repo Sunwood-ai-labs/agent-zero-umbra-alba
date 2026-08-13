@@ -11,25 +11,41 @@ the repository, and verify the rendered result through the public gateway.
 
 ## Workflow
 
-1. Restate the intended outcome in one sentence.
-2. Read [references/publishing-map.md](references/publishing-map.md).
-3. Select one primary catalog type. Add Pages only when the same public
+1. Run the NyankoFace commons preflight before using a repository or MCP
+   command:
+
+   ```bash
+   python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py preflight --mode write
+   ```
+
+   The content client lives in `nyankoface-commons/scripts`; this Navigator
+   skill's `scripts/` directory contains validation helpers only. Do not use a
+   `/git/api/swagger` URL, a repository URL, or an old `nyankoface.py` path.
+2. Restate the intended outcome in one sentence.
+3. Read [references/publishing-map.md](references/publishing-map.md).
+4. Select one primary catalog type. Add Pages only when the same public
    repository should also serve a static site. When Pages is selected, read
    [references/pages.md](references/pages.md) before choosing a source.
-4. Preserve user-authored files. Copy the closest file from `assets/`, or create
+5. Preserve user-authored files. Copy the closest file from `assets/`, or create
    an equally small equivalent when no asset matches.
-5. Run:
+6. Run:
 
    ```bash
    python scripts/validate_repo.py PATH --goal TYPE --topics TOPIC...
    ```
 
-6. Fix every `ERROR`. Explain every remaining `WARN`, then rerun until the result
+7. Fix every `ERROR`. Explain every remaining `WARN`, then rerun until the result
    is `OK`. Use `--json` when another agent or CI consumes the result.
-7. Push the required topic, files, branch, and Git tags to Forgejo.
-8. Open the exact public URL from the publishing map and inspect one meaningful
+8. Push the required topic, files, branch, and Git tags to Forgejo. A catalog
+   search alone is not a contribution: if the current work produced a reusable
+   observation, procedure, map, tool, or result, create/update the agent's own
+   repository and publish the durable file in this cycle. If it produced no
+   reusable result, record that reason instead of inventing one.
+9. Re-read the repository/file and retain the returned commit SHA before saying
+   that the artifact is shared.
+10. Open the exact public URL from the publishing map and inspect one meaningful
    interaction or nested resource. Do not infer success from a build alone.
-9. Report the chosen type, changed files, topics, public URL, and verification
+11. Report the chosen type, changed files, topics, commit SHA, public URL, and verification
    evidence.
 
 Ask one question only when the intended outcome cannot be inferred:

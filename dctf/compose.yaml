@@ -1,0 +1,131 @@
+name: agent-zero-umbra-alba-dctf
+
+# Official CTFd is the security competition control plane. Misskey remains
+# the social world/log, while these two isolated CTFd instances own challenges,
+# teams, submissions, and scoreboards for each faction.
+
+x-ctfd-env: &ctfd-env
+  UPLOAD_FOLDER: /var/uploads
+  WORKERS: "1"
+  LOG_FOLDER: /var/log/CTFd
+  ACCESS_LOG: "-"
+  ERROR_LOG: "-"
+  REVERSE_PROXY: "true"
+
+x-ctfd: &ctfd
+  image: ctfd/ctfd:latest
+  restart: unless-stopped
+  environment: *ctfd-env
+  volumes:
+    - ../runtime/dctf/${FACTION:-shared}/logs:/var/log/CTFd
+    - ../runtime/dctf/${FACTION:-shared}/uploads:/var/uploads
+
+x-db: &db
+  image: mariadb:10.11
+  restart: unless-stopped
+  environment:
+    MARIADB_ROOT_PASSWORD: ${DCTF_DB_ROOT_PASSWORD:-ctfd-root-local}
+    MARIADB_AUTO_UPGRADE: "1"
+  command:
+    - mysqld
+    - --character-set-server=utf8mb4
+    - --collation-server=utf8mb4_unicode_ci
+    - --wait_timeout=28800
+    - --log-warnings=0
+  healthcheck:
+    test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p$${MARIADB_ROOT_PASSWORD} --silent"]
+    interval: 5s
+    timeout: 5s
+    retries: 30
+
+x-cache: &cache
+  image: redis:7-alpine
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+
+services:
+  dctf-black-db:
+    <<: *db
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DCTF_BLACK_DB_ROOT_PASSWORD:-ctfd-black-root-local}
+      MARIADB_DATABASE: ctfd
+      MARIADB_USER: ctfd
+      MARIADB_PASSWORD: ${DCTF_BLACK_DB_PASSWORD:-ctfd-black-local}
+      MARIADB_AUTO_UPGRADE: "1"
+    volumes:
+      - ../runtime/dctf/black/mysql:/var/lib/mysql
+    networks: [black-internal]
+
+  dctf-black-cache:
+    <<: *cache
+    volumes:
+      - ../runtime/dctf/black/redis:/data
+    networks: [black-internal]
+
+  dctf-black:
+    <<: *ctfd
+    ports:
+      - "127.0.0.1:${DCTF_BLACK_PORT:-8400}:8000"
+    environment:
+      <<: *ctfd-env
+      DATABASE_URL: mysql+pymysql://ctfd:${DCTF_BLACK_DB_PASSWORD:-ctfd-black-local}@dctf-black-db/ctfd
+      REDIS_URL: redis://dctf-black-cache:6379
+      SECRET_KEY: ${DCTF_BLACK_SECRET_KEY:-agent-zero-umbra-alba-black-local-secret}
+    volumes:
+      - ../runtime/dctf/black/logs:/var/log/CTFd
+      - ../runtime/dctf/black/uploads:/var/uploads
+    depends_on:
+      dctf-black-db: {condition: service_healthy}
+      dctf-black-cache: {condition: service_healthy}
+    networks: [black-internal, black-net]
+
+  dctf-white-db:
+    <<: *db
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DCTF_WHITE_DB_ROOT_PASSWORD:-ctfd-white-root-local}
+      MARIADB_DATABASE: ctfd
+      MARIADB_USER: ctfd
+      MARIADB_PASSWORD: ${DCTF_WHITE_DB_PASSWORD:-ctfd-white-local}
+      MARIADB_AUTO_UPGRADE: "1"
+    volumes:
+      - ../runtime/dctf/white/mysql:/var/lib/mysql
+    networks: [white-internal]
+
+  dctf-white-cache:
+    <<: *cache
+    volumes:
+      - ../runtime/dctf/white/redis:/data
+    networks: [white-internal]
+
+  dctf-white:
+    <<: *ctfd
+    ports:
+      - "127.0.0.1:${DCTF_WHITE_PORT:-8401}:8000"
+    environment:
+      <<: *ctfd-env
+      DATABASE_URL: mysql+pymysql://ctfd:${DCTF_WHITE_DB_PASSWORD:-ctfd-white-local}@dctf-white-db/ctfd
+      REDIS_URL: redis://dctf-white-cache:6379
+      SECRET_KEY: ${DCTF_WHITE_SECRET_KEY:-agent-zero-umbra-alba-white-local-secret}
+    volumes:
+      - ../runtime/dctf/white/logs:/var/log/CTFd
+      - ../runtime/dctf/white/uploads:/var/uploads
+    depends_on:
+      dctf-white-db: {condition: service_healthy}
+      dctf-white-cache: {condition: service_healthy}
+    networks: [white-internal, white-net]
+
+networks:
+  # The network is not marked Docker-internal because Docker Desktop's
+  # Windows port-forwarder drops published ports from `internal: true`
+  # networks. Databases and Redis still have no host ports and are reachable
+  # only by the CTFd containers on this project network.
+  black-internal: {}
+  white-internal: {}
+  # The CTFd web services also join the main faction network so agents can
+  # reach them by service DNS when the whole project runs on a Linux VM.
+  black-net: {}
+  white-net: {}

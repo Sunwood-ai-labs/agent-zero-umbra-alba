@@ -152,14 +152,19 @@ $forgejoUsers = @()
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'artifact-contract' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'NYANKOFACE_FORGEJO_TOKEN_FILE' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'publish-file' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'set-topics' -or
-                (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'repo --owner' -or
+                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'set-topics' -or
+                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'preflight --mode write' -or
+                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'Read, contribute, verify, share' -or
+                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'misskey_social\.py' -or
+                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'repo --owner' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'file --owner' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'nyankoface\.py report' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'Sunwood-ai-labs/NyankoFace' -or
                 (Get-Content -Raw -LiteralPath $nyankoSkillPath) -notmatch 'github-issues\.py' -or
-                -not (Test-Path -LiteralPath $navigatorSkillPath) -or
-                (Get-Content -Raw -LiteralPath $navigatorSkillPath) -notmatch 'Forgejo'
+                 -not (Test-Path -LiteralPath $navigatorSkillPath) -or
+                 (Get-Content -Raw -LiteralPath $navigatorSkillPath) -notmatch 'Forgejo' -or
+                 (Get-Content -Raw -LiteralPath $navigatorSkillPath) -notmatch 'preflight --mode write' -or
+                 (Get-Content -Raw -LiteralPath $navigatorSkillPath) -notmatch 'search alone is not a contribution'
             ) {
                 throw "NyankoFace commons skill is not installed for $service."
             }
@@ -262,6 +267,15 @@ $forgejoUsers = @()
         }
         if (-not $nyankofaceSource.forgejo_user_configured -or -not $nyankofaceSource.forgejo_content_token_configured -or -not $nyankofaceSource.forgejo_token_configured) {
             throw "Per-agent NyankoFace Forgejo identity/token is not visible as the shared MCP credential in $service."
+        }
+        $nyankofacePreflightJson = docker compose --project-directory $projectRoot -f $compose exec -T $service `
+            python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py preflight --mode write
+        if ($LASTEXITCODE -ne 0) {
+            throw "NyankoFace write preflight failed in $service."
+        }
+        $nyankofacePreflight = $nyankofacePreflightJson | ConvertFrom-Json
+        if (-not $nyankofacePreflight.ok -or $nyankofacePreflight.errors.Count -ne 0) {
+            throw "NyankoFace write preflight did not satisfy the local command contract in $service."
         }
     }
     foreach ($service in @("black-agent01", "white-agent01")) {

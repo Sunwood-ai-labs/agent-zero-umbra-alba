@@ -94,6 +94,93 @@ REPORT_SECRET_VALUES = re.compile(
 REPORT_FIELD_LIMIT = 256 * 1024
 
 
+def _endpoint_errors(name: str, value: str, expected_path: str) -> list[str]:
+    """Return safe, actionable configuration errors for a public endpoint.
+
+    The agents previously turned a valid Forgejo base URL into paths such as
+    ``/git/api/swagger/api/v1/...`` by copying a documentation URL into the
+    environment.  Validate the *base* path before making a request so a bad
+    URL fails locally with a repair hint instead of a misleading remote 404.
+    """
+    errors: list[str] = []
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        errors.append(f"{name} must be an absolute http(s) URL")
+        return errors
+    path = parsed.path.rstrip("/")
+    if path != expected_path:
+        suffix = f"{expected_path or '/'} (do not append /api/v1, /api/swagger, or a repository path)"
+        errors.append(f"{name} must use the public base path {suffix}")
+    if parsed.query or parsed.fragment:
+        errors.append(f"{name} must not contain a query string or fragment")
+    return errors
+
+
+def _secret_file_configured(path: str) -> bool:
+    try:
+        return bool(Path(path).read_text(encoding="utf-8").strip())
+    except OSError:
+        return False
+
+
+def _runtime_preflight(mode: str) -> dict[str, object]:
+    """Check local NyankoFace prerequisites without contacting the network."""
+    errors: list[str] = []
+    checks: dict[str, object] = {
+        "client_path": str(Path(__file__).resolve()),
+        "public_url": BASE_URL,
+        "forgejo_url": FORGEJO_URL,
+        "mcp_url": MCP_URL,
+        "forgejo_token_file": FORGEJO_TOKEN_FILE,
+        "agent_key_file": AGENT_KEY_FILE,
+        "agent_slug": AGENT_SLUG,
+        "forgejo_user": FORGEJO_USER or None,
+    }
+    for name, value, expected_path in (
+        ("NYANKOFACE_PUBLIC_URL", BASE_URL, ""),
+        ("NYANKOFACE_FORGEJO_URL", FORGEJO_URL, "/git"),
+        ("NYANKOFACE_MCP_URL", MCP_URL, "/mcp"),
+    ):
+        errors.extend(_endpoint_errors(name, value, expected_path))
+    if not SAFE_SLUG.fullmatch(AGENT_SLUG):
+        errors.append("NYANKOFACE_AGENT_SLUG must be a lowercase hyphenated slug")
+    if mode not in {"read", "write", "metrics"}:
+        errors.append("preflight mode must be read, write, or metrics")
+    if mode == "write":
+        if not FORGEJO_USER:
+            errors.append("NYANKOFACE_FORGEJO_USER is required for repository writes")
+        if not (FORGEJO_TOKEN or _secret_file_configured(FORGEJO_TOKEN_FILE)):
+            errors.append("Forgejo content token is missing; writes are blocked")
+    if mode == "metrics" and not (AGENT_KEY or _secret_file_configured(AGENT_KEY_FILE)):
+        errors.append("per-character NyankoFace agent key is missing; metrics are blocked")
+    checks.update(
+        {
+            "forgejo_token_configured": bool(FORGEJO_TOKEN) or _secret_file_configured(FORGEJO_TOKEN_FILE),
+            "agent_key_configured": bool(AGENT_KEY) or _secret_file_configured(AGENT_KEY_FILE),
+            "mode": mode,
+        }
+    )
+    return {
+        "ok": not errors,
+        "checks": checks,
+        "errors": errors,
+        "canonical_commands": {
+            "client": "/opt/data/skills/nyankoface-commons/scripts/nyankoface.py",
+            "read": "python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py catalog --limit 8",
+            "repo": "python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py repo --owner OWNER --repo REPO",
+            "file": "python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py file --owner OWNER --repo REPO --path PATH --raw",
+            "write": "python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py publish-file --owner OWNER --repo REPO --path PATH --body-file BODY_FILE --message MESSAGE",
+        },
+    }
+
+
+def preflight(args: argparse.Namespace) -> None:
+    summary = _runtime_preflight(args.mode)
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if not summary["ok"]:
+        raise SystemExit(2)
+
+
 def request_json(
     path: str,
     *,
@@ -185,6 +272,9 @@ def mcp_request(
     request_id: int | None = None,
     params: dict[str, object] | None = None,
 ) -> tuple[int, str, dict[str, object]]:
+    endpoint_errors = _endpoint_errors("NYANKOFACE_MCP_URL", MCP_URL, "/mcp")
+    if endpoint_errors:
+        raise RuntimeError("; ".join(endpoint_errors) + "; run `nyankoface.py preflight --mode read`")
     message: dict[str, object] = {"jsonrpc": "2.0", "method": method}
     if request_id is not None:
         message["id"] = request_id
@@ -316,6 +406,9 @@ def forgejo_request(
     payload: object | None = None,
     authenticated: bool = False,
 ) -> object:
+    endpoint_errors = _endpoint_errors("NYANKOFACE_FORGEJO_URL", FORGEJO_URL, "/git")
+    if endpoint_errors:
+        raise RuntimeError("; ".join(endpoint_errors) + "; run `nyankoface.py preflight --mode write`")
     headers: dict[str, str] = {}
     if authenticated:
         headers["Authorization"] = f"token {read_forgejo_token()}"
@@ -764,6 +857,13 @@ def main() -> None:
 
     source_parser = sub.add_parser("source")
     source_parser.set_defaults(handler=source)
+
+    preflight_parser = sub.add_parser(
+        "preflight",
+        help="validate endpoint paths and local credentials before using the client",
+    )
+    preflight_parser.add_argument("--mode", choices=("read", "write", "metrics"), default="write")
+    preflight_parser.set_defaults(handler=preflight)
 
     mcp = sub.add_parser("mcp-check")
     mcp.set_defaults(handler=mcp_check)

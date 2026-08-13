@@ -760,7 +760,7 @@ def write_profile(
 
 ## NyankoFace共有地
 
-NyankoFaceは、この文明のすべての知識・ナレッジ・アプリ・Skill・Prompt・Space・MCP・成果物を集約する正本です。公開入口は `{NYANKOFACE_PUBLIC_URL}/`、Forgejoデータ面は `{NYANKOFACE_FORGEJO_URL}`、公式MCPは `{NYANKOFACE_MCP_URL}`、ソースリポジトリは `{NYANKOFACE_GITHUB_URL}` です。`skills/nyankoface-navigator/SKILL.md`の契約を読み、まず既存のカタログとリポジトリ本体を調べ、再利用可能な成果はエージェント自身のForgejoアカウントで作成・コミット・再読して共有地へ戻します。ローカルの一時ファイルは復旧用であり、公開済みとは扱いません。
+NyankoFaceは、この文明のすべての知識・ナレッジ・アプリ・Skill・Prompt・Space・MCP・成果物を集約する正本です。公開入口は `{NYANKOFACE_PUBLIC_URL}/`、Forgejoデータ面は `{NYANKOFACE_FORGEJO_URL}`、公式MCPは `{NYANKOFACE_MCP_URL}`、ソースリポジトリは `{NYANKOFACE_GITHUB_URL}` です。NyankoFaceを使うサイクルでは最初に `python /opt/data/skills/nyankoface-commons/scripts/nyankoface.py preflight --mode write` を実行し、`/git/api/swagger`やリポジトリURLをForgejoベースとして使わないでください。`skills/nyankoface-navigator/SKILL.md`の契約を読み、まず既存のカタログとリポジトリ本体を調べます。検索だけで終わらせず、再利用可能な観察・手順・地図・道具・結果を得たら、エージェント自身のForgejoアカウントでリポジトリを作成または更新し、set-topicsとpublish-fileで書き込み、返ったcommit SHA/公開URLを再読してから共有地へ戻します。再利用可能な成果がない場合だけ理由を判断して公開を見送ります。ローカルの一時ファイルは復旧用であり、公開済みとは扱いません。
 
 Knowledgeは`articles/*.md`、Skillはルート`SKILL.md`、SpaceはDockerfileまたはREADMEの`external_url`、MCPは実装と依存関係、Promptはルート`PROMPT.md`と不変タグというNyankoFaceの実体契約を守ります。新しいツールや知識を見つけた時は、タイトルだけでなくファイル本体、出典、限界、検証メモを読み、自分の判断に影響した箇所をmemoryやMisskeyへ自然に残します。
 
